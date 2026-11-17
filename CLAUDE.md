@@ -25,11 +25,12 @@ make lint     # golangci-lint (gofumpt)
 3. **Every reason is registered** in `contract/reasons.json` for its profile. Never return `POLICY_REF_MISMATCH` or `RULE_UNDEFINED`: they are the PDS's.
 4. **A new behaviour is a new version.** Do not edit a shipped ruleset version in place.
 5. **The gate must be able to fail.** Any new check comes with a test that breaks a copy of the repo and expects the check to notice (`internal/rulescheck/rulescheck_test.go`).
-6. **Contract changes start in the PDS.** If a rule needs a different input, manifest field or output, change `docs/rules-contract.md` in the PDS first; this repository follows.
+6. **A ruleset's tests must kill every mutant** (`make mutate`) and a newer version may not loosen a decision on the corpus (`make compat`, `conformance/compat/<profile>.json`). Run `make promote-check` before a change is ready.
+7. **Contract changes start in the PDS.** If a rule needs a different input, manifest field or output, change `docs/rules-contract.md` in the PDS first; this repository follows.
 
 ## Conventions
 
-- **Dependencies:** OPA is pinned to **v1.17.1** (core-runtime's version, same as the PDS). Go 1.26 (`go 1.26.0`, `toolchain go1.26.10`). Add a dependency with an explicit `@version`; never `go get -u`; confirm OPA is still v1.17.1 and `go` still 1.26.0 afterwards.
+- **Dependencies:** OPA is pinned to **v1.17.1** (core-runtime's version, same as the PDS). Go 1.26 (`go 1.26.0`, `toolchain go1.26.11`). Add a dependency with an explicit `@version`; never `go get -u`; confirm OPA is still v1.17.1 and `go` still 1.26.0 afterwards.
 - Rego v1 syntax, compiled strictly. `in` is a reserved word; `with` cannot sit inside parentheses; `object.union` merges recursively.
 - `gofumpt` + `goimports -local github.com/sspl/sspl-cip-rego-rules`, `.golangci.yml` as in the PDS.
 - Conventional commits (`feat:`, `fix:`, `test:`, `chore:`). No AI attribution trailers in commits. Commit and push only when asked; never force-push; never `--no-verify`.
