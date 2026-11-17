@@ -62,3 +62,9 @@ test_a_missing_period_is_undefined if {
 	i := json.remove(base, ["values/cooling_period_minutes"])
 	not ib.decision with input as i
 }
+
+test_a_changed_beneficiary_is_a_deny_with_a_trust_class if {
+	d := ib.decision with input as object.union(age(400), {"facts": {"beneficiary_unchanged": false}})
+	d.result == "DENY"
+	d.reason_code == "CIP-POL-TRUST"
+}

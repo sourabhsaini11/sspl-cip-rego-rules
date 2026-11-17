@@ -1,0 +1,157 @@
+{
+  "profile": "BRIDGE-UPI",
+  "operation": "UPI_PAY",
+  "cases": [
+    {
+      "name": "day, small, verified device",
+      "facts": {
+        "amount_inr": 500,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      }
+    },
+    {
+      "name": "day, at the per-transaction limit",
+      "facts": {
+        "amount_inr": 10000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      }
+    },
+    {
+      "name": "day, over the per-transaction limit",
+      "facts": {
+        "amount_inr": 10001,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      }
+    },
+    {
+      "name": "day, unverified device above the step-up threshold",
+      "facts": {
+        "amount_inr": 5000,
+        "payee_vpa": "shop@bank",
+        "device_verified": false
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      }
+    },
+    {
+      "name": "day, unverified device at the step-up threshold",
+      "facts": {
+        "amount_inr": 3000,
+        "payee_vpa": "shop@bank",
+        "device_verified": false
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      }
+    },
+    {
+      "name": "night, over the night cap",
+      "facts": {
+        "amount_inr": 5000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      },
+      "now": "2026-10-15T23:30:00+05:30"
+    },
+    {
+      "name": "night, at the night cap",
+      "facts": {
+        "amount_inr": 1000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      },
+      "now": "2026-10-15T23:30:00+05:30"
+    },
+    {
+      "name": "daily limit exactly reached",
+      "facts": {
+        "amount_inr": 10000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      },
+      "live": {
+        "daily_drawn_inr": 40000,
+        "found": true
+      }
+    },
+    {
+      "name": "daily limit exceeded",
+      "facts": {
+        "amount_inr": 10000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      },
+      "live": {
+        "daily_drawn_inr": 40001,
+        "found": true
+      }
+    },
+    {
+      "name": "an invalid amount",
+      "facts": {
+        "amount_inr": 0,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      }
+    }
+  ],
+  "allowed_widening": []
+}

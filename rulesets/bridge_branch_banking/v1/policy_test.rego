@@ -76,3 +76,28 @@ test_a_missing_or_mistyped_delegation_is_undefined if {
 test_another_operation_is_undefined if {
 	not bb.decision with input as object.union(base, {"ctx": {"operation": "CASH_DEPOSIT"}})
 }
+
+test_an_amount_below_one_is_a_deny if {
+	d := bb.decision with input as object.union(base, {"facts": {"amount_inr": 0}})
+	d.result == "DENY"
+	d.reason_code == "CIP-POL-DENY"
+}
+
+test_an_amount_of_one_is_valid_on_every_path if {
+	small := object.union(base, {"facts": {"amount_inr": 1}})
+	bb.decision.result == "PERMIT" with input as small
+	# above the delegation by one rupee: referred, not permitted, and the delegation is inclusive
+	bb.decision.result == "PERMIT" with input as object.union(base, {"facts": {"amount_inr": 50000}})
+	bb.decision.result == "REFER" with input as object.union(base, {"facts": {"amount_inr": 50001}})
+	over := object.union(base, {"values": {"branch_delegation_limit_inr": 0}})
+	bb.decision.result == "REFER" with input as object.union(over, {"facts": {"amount_inr": 1}})
+}
+
+test_a_withdrawal_of_one_over_a_zero_delegation_can_be_approved if {
+	i := object.union(approved({"amount_inr": 1}), {"values": {"branch_delegation_limit_inr": 0}})
+	bb.decision.result == "PERMIT" with input as i
+	bb.decision.reason == "DUAL_CONTROL_SATISFIED" with input as i
+	bb.decision.reason == "SEGREGATION_OF_DUTIES" with input as object.union(i, {"facts": {"supervisor_id": "TLR-1"}})
+	bb.decision.reason == "SEGREGATION_OF_DUTIES" with input as object.union(i, {"facts": {"approval_intent_digest": "x"}})
+	bb.decision.result == "REFER" with input as object.union(i, {"facts": {"supervisor_session_fresh": false}})
+}

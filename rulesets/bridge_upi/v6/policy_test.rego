@@ -61,3 +61,48 @@ test_missing_threshold_is_undefined if {
 test_a_string_threshold_is_undefined if {
 	not upi.decision with input as object.union(base, {"values": {"step_up_threshold_inr": "3000"}})
 }
+
+# ---- boundaries: each comparison is pinned from both sides ----
+
+verified(f) := object.union(base, {"facts": object.union({"device_verified": true}, f)})
+
+test_an_amount_of_one_is_valid if {
+	d := upi.decision with input as verified({"amount_inr": 1})
+	d.result == "PERMIT"
+}
+
+test_the_night_window_boundaries if {
+	night := {"amount_inr": 5000}
+	upi.decision.result == "PERMIT" with input as object.union(verified(night), {"ctx": {"now": "2026-10-15T21:59:00+05:30"}})
+	upi.decision.reason == "NIGHT_CAP_EXCEEDED" with input as object.union(verified(night), {"ctx": {"now": "2026-10-15T22:00:00+05:30"}})
+	upi.decision.reason == "NIGHT_CAP_EXCEEDED" with input as object.union(verified(night), {"ctx": {"now": "2026-10-16T05:59:00+05:30"}})
+	upi.decision.result == "PERMIT" with input as object.union(verified(night), {"ctx": {"now": "2026-10-16T06:00:00+05:30"}})
+}
+
+test_the_night_cap_is_inclusive if {
+	late := {"ctx": {"now": "2026-10-15T23:30:00+05:30"}}
+	d := upi.decision with input as object.union(verified({"amount_inr": 1000}), late)
+	d.result == "PERMIT"
+	d2 := upi.decision with input as object.union(verified({"amount_inr": 1001}), late)
+	d2.reason == "NIGHT_CAP_EXCEEDED"
+}
+
+test_the_per_transaction_limit_is_inclusive if {
+	d := upi.decision with input as verified({"amount_inr": 10000})
+	d.result == "PERMIT"
+	d2 := upi.decision with input as verified({"amount_inr": 10001})
+	d2.reason == "PER_TXN_LIMIT_EXCEEDED"
+}
+
+drawn_of(n) := object.union(verified({"amount_inr": 10000}), {"live": {"daily_drawn_inr": n}})
+
+test_the_daily_limit_adds_what_was_already_drawn if {
+	upi.decision.result == "PERMIT" with input as drawn_of(40000)
+	upi.decision.reason == "DAILY_LIMIT_EXCEEDED" with input as drawn_of(40001)
+	upi.decision.reason == "DAILY_LIMIT_EXCEEDED" with input as drawn_of(45000)
+}
+
+test_the_step_up_threshold_is_exclusive if {
+	upi.decision.result == "PERMIT" with input as object.union(base, {"facts": {"amount_inr": 3000}})
+	upi.decision.result == "STEP_UP" with input as object.union(base, {"facts": {"amount_inr": 3001}})
+}

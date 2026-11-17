@@ -1,0 +1,155 @@
+{
+  "profile": "BRIDGE-AEPS",
+  "operation": "AEPS_WITHDRAWAL",
+  "cases": [
+    {
+      "name": "within the ceiling",
+      "facts": {
+        "amount_inr": 1000,
+        "auth_factor": "BIO_FP",
+        "terminal_type": "BC_DEVICE",
+        "bc_authorised": true,
+        "device_certified": true,
+        "terminal_active": true,
+        "shift_permitted": true
+      },
+      "values": {
+        "daily_ceiling_inr": 10000,
+        "step_up_threshold_inr": 5000,
+        "bc_daily_exposure_limit_inr": 50000
+      }
+    },
+    {
+      "name": "a step-up amount within the ceiling",
+      "facts": {
+        "amount_inr": 6000,
+        "auth_factor": "BIO_FP",
+        "terminal_type": "BC_DEVICE",
+        "bc_authorised": true,
+        "device_certified": true,
+        "terminal_active": true,
+        "shift_permitted": true
+      },
+      "values": {
+        "daily_ceiling_inr": 10000,
+        "step_up_threshold_inr": 5000,
+        "bc_daily_exposure_limit_inr": 50000
+      }
+    },
+    {
+      "name": "over the daily ceiling",
+      "facts": {
+        "amount_inr": 12000,
+        "auth_factor": "BIO_FP",
+        "terminal_type": "BC_DEVICE",
+        "bc_authorised": true,
+        "device_certified": true,
+        "terminal_active": true,
+        "shift_permitted": true
+      },
+      "values": {
+        "daily_ceiling_inr": 10000,
+        "step_up_threshold_inr": 5000,
+        "bc_daily_exposure_limit_inr": 50000
+      },
+      "live": {
+        "daily_drawn_inr": 1000,
+        "found": true
+      }
+    },
+    {
+      "name": "exactly the remaining allowance",
+      "facts": {
+        "amount_inr": 9000,
+        "auth_factor": "BIO_FP",
+        "terminal_type": "BC_DEVICE",
+        "bc_authorised": true,
+        "device_certified": true,
+        "terminal_active": true,
+        "shift_permitted": true
+      },
+      "values": {
+        "daily_ceiling_inr": 10000,
+        "step_up_threshold_inr": 5000,
+        "bc_daily_exposure_limit_inr": 50000
+      },
+      "live": {
+        "daily_drawn_inr": 1000,
+        "found": true
+      }
+    },
+    {
+      "name": "an invalid amount",
+      "facts": {
+        "amount_inr": 0,
+        "auth_factor": "BIO_FP",
+        "terminal_type": "BC_DEVICE",
+        "bc_authorised": true,
+        "device_certified": true,
+        "terminal_active": true,
+        "shift_permitted": true
+      },
+      "values": {
+        "daily_ceiling_inr": 10000,
+        "step_up_threshold_inr": 5000,
+        "bc_daily_exposure_limit_inr": 50000
+      }
+    },
+    {
+      "name": "the BC is not authorised",
+      "facts": {
+        "amount_inr": 1000,
+        "auth_factor": "BIO_FP",
+        "terminal_type": "BC_DEVICE",
+        "bc_authorised": false,
+        "device_certified": true,
+        "terminal_active": true,
+        "shift_permitted": true
+      },
+      "values": {
+        "daily_ceiling_inr": 10000,
+        "step_up_threshold_inr": 5000,
+        "bc_daily_exposure_limit_inr": 50000
+      }
+    },
+    {
+      "name": "the terminal is inactive",
+      "facts": {
+        "amount_inr": 1000,
+        "auth_factor": "BIO_FP",
+        "terminal_type": "BC_DEVICE",
+        "bc_authorised": true,
+        "device_certified": true,
+        "terminal_active": false,
+        "shift_permitted": true
+      },
+      "values": {
+        "daily_ceiling_inr": 10000,
+        "step_up_threshold_inr": 5000,
+        "bc_daily_exposure_limit_inr": 50000
+      }
+    },
+    {
+      "name": "exposure past the BC limit",
+      "facts": {
+        "amount_inr": 2000,
+        "auth_factor": "BIO_FP",
+        "terminal_type": "BC_DEVICE",
+        "bc_authorised": true,
+        "device_certified": true,
+        "terminal_active": true,
+        "shift_permitted": true
+      },
+      "values": {
+        "daily_ceiling_inr": 10000,
+        "step_up_threshold_inr": 5000,
+        "bc_daily_exposure_limit_inr": 2500
+      },
+      "live": {
+        "daily_drawn_inr": 1000,
+        "found": true
+      }
+    }
+  ],
+  "allowed_widening": []
+}

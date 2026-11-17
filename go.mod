@@ -2,7 +2,7 @@ module github.com/sspl/sspl-cip-rego-rules
 
 go 1.26.0
 
-toolchain go1.26.10
+toolchain go1.26.11
 
 require (
 	github.com/open-policy-agent/opa v1.17.1

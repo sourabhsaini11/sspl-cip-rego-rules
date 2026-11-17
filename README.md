@@ -140,3 +140,23 @@ The gate reads every UPPER_SNAKE string in a policy as a reason, so an operation
 registered in `contract/reasons.json` under `literals` (`kind`: `OPERATION` or `OBLIGATION`). A fact's enum values
 need no registration: they come from the ruleset's `fact-schema.json`. A registered literal nothing uses, one that is also
 a reason, or one for a profile not in the manifest, fails the gate.
+
+## Conformance and promotion (PDE architecture document, component 11 and section 33)
+
+`make conformance` runs the two checks the repository owns; `make promote-check` runs everything a ruleset must pass before
+it may be signed and promoted (the gate, the tests, lint, conformance, and a vulnerability scan).
+
+- **Mutation (`make mutate`).** Each ruleset is mutated one change at a time (a comparison turned over, a `+` turned into a `-`, a
+  result turned into `PERMIT`, a dropped `not`, a flipped boolean) and its own Rego tests must fail on every mutant. A mutant that
+  survives is a rule the tests do not pin down. When one is genuinely equivalent to the original, a reviewer lists it in
+  `conformance/accepted-mutants.json` with the reason; a listing that no longer matches anything fails as stale. All ten
+  rulesets kill every mutant today; writing the mutation check found, and the added tests now cover, among others a revoked
+  device asking for a balance and the result and class of several denials that were asserted only by reason.
+- **N and N-1 (`make compat`).** Each profile with two or more versions has a corpus in `conformance/compat/<profile>.json`. The
+  adjacent versions answer the same inputs and a newer version may be stricter but not more permissive: any widening must be listed
+  in `allowed_widening` (version pair, case, reason), and a listing that no longer happens fails as stale. A profile with two
+  versions and no corpus fails. Today `BRIDGE-UPI` v5 to v6 and `BRIDGE-AEPS` v2 to v3 only narrow (a step-up, a referral, a
+  denial for a BC that is not authorised).
+- **Not here:** regional version skew (regions are not modelled yet) and latency (the PDS has `make bench`).
+- **CI.** `.gitlab-ci.yml` runs the gate, conformance, `govulncheck` and the proposal export. It uses plain jobs because the GitLab
+  project does not exist yet; align it with the shared components when it does.

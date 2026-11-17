@@ -93,3 +93,22 @@ test_string_step_up_threshold_does_not_decide if {
 test_fractional_ceiling_does_not_allow if {
 	not aeps.decision with input as object.union(base, {"values": {"daily_ceiling_inr": 10000.5}})
 }
+
+test_an_invalid_amount_is_a_deny_without_a_step_up if {
+	d := aeps.decision with input as amount(0)
+	not d.allow
+	d.reason == "INVALID_AMOUNT"
+	d.obligations.step_up_required == false
+}
+
+test_an_amount_of_one_is_valid if {
+	d := aeps.decision with input as amount(1)
+	d.allow
+	d.reason == "WITHIN_CEILING"
+}
+
+test_one_rupi_over_an_exhausted_ceiling_is_denied if {
+	d := aeps.decision with input as object.union(amount(1), {"live": {"daily_drawn_inr": 10000}})
+	not d.allow
+	d.reason == "DAILY_CEILING_EXCEEDED"
+}

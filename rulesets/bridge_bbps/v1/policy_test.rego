@@ -49,3 +49,18 @@ test_a_missing_or_malformed_list_is_undefined if {
 test_another_operation_is_undefined if {
 	not bbps.decision with input as object.union(base, {"ctx": {"operation": "BILL_FETCH"}})
 }
+
+test_every_refusal_is_a_deny_with_its_class if {
+	for_case := {
+		"SUBSCRIPTION_NOT_ACTIVE": [{"subscription_active": false}, "CIP-POL-TRUST"],
+		"SESSION_NOT_VALID": [{"session_valid": false}, "CIP-POL-TRUST"],
+		"BILLER_NOT_ENABLED": [{"biller_class": "INSURANCE"}, "CIP-POL-DENY"],
+		"INSTRUMENT_NOT_PERMITTED": [{"instrument": "CREDIT_LINE"}, "CIP-POL-DENY"],
+	}
+	every reason, c in for_case {
+		d := bbps.decision with input as object.union(base, {"facts": c[0]})
+		d.result == "DENY"
+		d.reason == reason
+		d.reason_code == c[1]
+	}
+}

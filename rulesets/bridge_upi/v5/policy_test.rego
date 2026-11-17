@@ -129,3 +129,16 @@ test_one_mistyped_limit_does_not_allow if {
 test_fractional_limit_does_not_allow if {
 	not upi.decision with input as object.union(base, {"values": {"per_txn_limit_inr": 10000.5}})
 }
+
+test_an_amount_of_one_is_valid if {
+	d := upi.decision with input as amount(1)
+	d.allow
+}
+
+test_the_night_cap_is_inclusive if {
+	d := upi.decision with input as object.union(at("2026-10-15T23:30:00+05:30"), {"facts": {"amount_inr": 1000}})
+	d.allow
+	d2 := upi.decision with input as object.union(at("2026-10-15T23:30:00+05:30"), {"facts": {"amount_inr": 1001}})
+	not d2.allow
+	d2.reason == "NIGHT_CAP_EXCEEDED"
+}

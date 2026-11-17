@@ -73,3 +73,15 @@ test_an_unknown_device_asking_for_a_balance_steps_up if {
 test_an_operation_nobody_approved_is_undefined if {
 	not mb.decision with input as op("EXPORT_STATEMENT")
 }
+
+test_a_revoked_device_asking_for_a_balance_is_denied if {
+	d := mb.decision with input as object.union(op("BALANCE_ENQUIRY"), {"facts": {"device_trust": "REVOKED"}})
+	d.result == "DENY"
+	d.reason == "DEVICE_REVOKED"
+	d.reason_code == "CIP-POL-TRUST"
+}
+
+test_another_banks_data_is_denied_even_for_a_revoked_device if {
+	d := mb.decision with input as object.union(op("BALANCE_ENQUIRY"), {"facts": {"device_trust": "REVOKED", "subject_bank_id": "KGB002"}})
+	d.reason == "BANK_SCOPE_MISMATCH"
+}

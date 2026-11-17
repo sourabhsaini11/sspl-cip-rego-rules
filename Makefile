@@ -1,4 +1,4 @@
-.PHONY: check test lint fmt vet
+.PHONY: check test lint fmt vet mutate compat conformance vuln promote-check
 
 ## check: the pipeline gate. Exit 0 only if the rules may be signed and shipped.
 check:
@@ -16,3 +16,20 @@ lint:
 
 fmt:
 	gofumpt -l -w .
+
+## mutate: mutation-test every ruleset; each rule change must make its Rego tests fail (conformance/accepted-mutants.json lists reviewed equivalents)
+mutate:
+	go run ./cmd/rules-conformance mutate
+
+## compat: compare adjacent versions of a profile on the corpus; a newer version may not silently loosen a decision
+compat:
+	go run ./cmd/rules-conformance compat
+
+conformance: mutate compat
+
+## vuln: no reachable vulnerability in the module's dependencies or the Go toolchain (govulncheck)
+vuln:
+	govulncheck ./...
+
+## promote-check: everything a ruleset must pass before it may be signed and promoted
+promote-check: check test lint conformance vuln

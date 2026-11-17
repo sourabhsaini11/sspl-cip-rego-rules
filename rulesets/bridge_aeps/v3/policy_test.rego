@@ -61,3 +61,49 @@ test_a_missing_or_mistyped_limit_is_undefined if {
 	not aeps.decision with input as object.union(base, {"values": {"bc_daily_exposure_limit_inr": "50000"}})
 	not aeps.decision with input as json.remove(base, ["values/bc_daily_exposure_limit_inr"])
 }
+
+# ---- boundaries and results ----
+
+test_an_invalid_amount_is_a_deny_without_a_step_up if {
+	d := aeps.decision with input as object.union(base, {"facts": {"amount_inr": 0}})
+	d.result == "DENY"
+	d.reason == "INVALID_AMOUNT"
+	d.obligations.step_up_required == false
+}
+
+test_an_amount_of_one_is_valid if {
+	d := aeps.decision with input as object.union(base, {"facts": {"amount_inr": 1}})
+	d.result == "PERMIT"
+}
+
+test_the_remaining_allowance_is_inclusive_and_never_negative if {
+	d := aeps.decision with input as object.union(base, {"facts": {"amount_inr": 9000}})
+	d.result == "PERMIT"
+	d.details.remaining_daily_allowance_inr == 0
+	d2 := aeps.decision with input as object.union(base, {"facts": {"amount_inr": 9001}})
+	d2.result == "DENY"
+	d2.reason == "DAILY_CEILING_EXCEEDED"
+}
+
+test_the_step_up_threshold_is_exclusive if {
+	aeps.decision.obligations.step_up_required == false with input as object.union(base, {"facts": {"amount_inr": 5000}})
+	aeps.decision.obligations.step_up_required == true with input as object.union(base, {"facts": {"amount_inr": 5001}})
+}
+
+test_the_bc_exposure_limit_is_inclusive if {
+	i := object.union(base, {"values": {"bc_daily_exposure_limit_inr": 3000}})
+	aeps.decision.result == "PERMIT" with input as i
+	aeps.decision.result == "REFER" with input as object.union(i, {"values": {"bc_daily_exposure_limit_inr": 2999}})
+}
+
+test_one_rupee_over_an_exhausted_ceiling_is_denied if {
+	d := aeps.decision with input as object.union(base, {"facts": {"amount_inr": 1}, "live": {"daily_drawn_inr": 10000}})
+	d.result == "DENY"
+	d.reason == "DAILY_CEILING_EXCEEDED"
+}
+
+test_exposure_is_judged_at_the_smallest_and_the_largest_valid_amounts if {
+	tight := object.union(base, {"values": {"bc_daily_exposure_limit_inr": 1000}})
+	aeps.decision.result == "REFER" with input as object.union(tight, {"facts": {"amount_inr": 1}})
+	aeps.decision.result == "REFER" with input as object.union(tight, {"facts": {"amount_inr": 9000}})
+}
