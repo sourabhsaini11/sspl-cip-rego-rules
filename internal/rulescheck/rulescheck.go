@@ -32,8 +32,9 @@ import (
 const SupportedInputContract = "v1"
 
 const (
-	manifestRel = "rulesets/manifest.template.json"
-	reasonsRel  = "contract/reasons.json"
+	manifestRel  = "rulesets/manifest.template.json"
+	reasonsRel   = "contract/reasons.json"
+	templatesRel = "templates"
 )
 
 var (
@@ -42,6 +43,8 @@ var (
 	revisionRe = regexp.MustCompile(`^\d{4}\.\d{2}\.\d{2}-\d{1,9}$`)
 	commitRe   = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	reasonRe   = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+	ruleTypeRe = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}$`)
+	templateRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 	// allowedLiterals are the only numbers a rule may contain: 0 and 1 (counting, "at least
 	// one rupee") and the two hours of the local night window. Anything else is a limit and
@@ -76,8 +79,25 @@ type registry struct {
 	RegistryVersion    int        `json:"registry_version"`
 	Description        string     `json:"description"`
 	Reasons            []regEntry `json:"reasons"`
+	TemplateReasons    []tplEntry `json:"template_reasons"`
 	ReservedForPDS     []string   `json:"reserved_for_pds"`
 	AllowedReasonCodes []string   `json:"allowed_reason_codes"`
+}
+
+// tplEntry registers a reason a P1 template may return, per rule type rather than per profile:
+// a template runs for every profile it is bound to.
+type tplEntry struct {
+	RuleType   string `json:"rule_type"`
+	Reason     string `json:"reason"`
+	Verdict    string `json:"verdict"`
+	ReasonCode string `json:"reason_code"`
+}
+
+// templateMeta is templates/<rule_type>/template.json: which facts the template reads, so a
+// binding can be refused for a ruleset whose fact schema does not declare them.
+type templateMeta struct {
+	RuleType      string            `json:"rule_type"`
+	RequiresFacts map[string]string `json:"requires_facts"`
 }
 
 type regEntry struct {
@@ -94,6 +114,8 @@ type checker struct {
 	reserved map[string]bool
 	codes    map[string]bool
 	used     map[string]bool // profile|reason produced by some ruleset
+	tplUsed  map[string]bool // rule_type|reason produced by some template
+	tplTypes map[string]bool // rule types that have a template directory
 }
 
 func (c *checker) add(where, format string, args ...any) {
@@ -103,7 +125,7 @@ func (c *checker) add(where, format string, args ...any) {
 // Check inspects the rulesets and the contract under root. A returned error means the check
 // itself could not run (the context was cancelled); anything wrong with the rules is a Problem.
 func Check(ctx context.Context, root string) ([]Problem, error) {
-	c := &checker{root: root, reserved: map[string]bool{}, codes: map[string]bool{}, used: map[string]bool{}}
+	c := &checker{root: root, reserved: map[string]bool{}, codes: map[string]bool{}, used: map[string]bool{}, tplUsed: map[string]bool{}, tplTypes: map[string]bool{}}
 	c.loadRegistry()
 	m := c.loadManifest()
 	if m != nil {
@@ -117,6 +139,10 @@ func Check(ctx context.Context, root string) ([]Problem, error) {
 		}
 		c.checkStale(m)
 	}
+	if err := c.checkTemplates(ctx); err != nil {
+		return nil, err
+	}
+	c.checkStaleTemplates()
 	return c.problems, ctx.Err()
 }
 
@@ -158,18 +184,39 @@ func (c *checker) loadRegistry() {
 			c.add(reasonsRel, "%s: duplicate entry", who)
 		}
 		seen[who] = true
-		switch e.Verdict {
-		case "ALLOW":
-			if e.ReasonCode != "" {
-				c.add(reasonsRel, "%s: an ALLOW reason carries no reason_code, got %q", who, e.ReasonCode)
-			}
-		case "REJECT":
-			if !c.codes[e.ReasonCode] {
-				c.add(reasonsRel, "%s: a REJECT reason needs a reason_code from allowed_reason_codes, got %q", who, e.ReasonCode)
-			}
-		default:
-			c.add(reasonsRel, "%s: verdict must be ALLOW or REJECT, got %q", who, e.Verdict)
+		c.checkVerdict(who, e.Verdict, e.ReasonCode)
+	}
+	seenTpl := map[string]bool{}
+	for _, e := range r.TemplateReasons {
+		who := "template " + e.RuleType + "/" + e.Reason
+		switch {
+		case !ruleTypeRe.MatchString(e.RuleType):
+			c.add(reasonsRel, "%s: rule_type must be UPPER_SNAKE_CASE", who)
+		case !reasonRe.MatchString(e.Reason):
+			c.add(reasonsRel, "%s: reason must be UPPER_SNAKE_CASE", who)
+		case c.reserved[e.Reason]:
+			c.add(reasonsRel, "%s: reason is reserved for the PDS and cannot be registered for rules", who)
 		}
+		if seenTpl[who] {
+			c.add(reasonsRel, "%s: duplicate entry", who)
+		}
+		seenTpl[who] = true
+		c.checkVerdict(who, e.Verdict, e.ReasonCode)
+	}
+}
+
+func (c *checker) checkVerdict(who, verdict, code string) {
+	switch verdict {
+	case "ALLOW":
+		if code != "" {
+			c.add(reasonsRel, "%s: an ALLOW reason carries no reason_code, got %q", who, code)
+		}
+	case "REJECT":
+		if !c.codes[code] {
+			c.add(reasonsRel, "%s: a REJECT reason needs a reason_code from allowed_reason_codes, got %q", who, code)
+		}
+	default:
+		c.add(reasonsRel, "%s: verdict must be ALLOW or REJECT, got %q", who, verdict)
 	}
 }
 
@@ -298,7 +345,7 @@ func (c *checker) checkRuleset(ctx context.Context, e entry) {
 	if !definesDecision(mod) {
 		c.add(where, "policy.rego defines no decision rule: the PDS reads data.<package>.decision")
 	}
-	c.checkLiterals(where, mod)
+	c.checkLiterals(where, "policy.rego", mod)
 	c.checkReasons(where, e, mod)
 	if testErr == nil {
 		c.runRegoTests(ctx, where, policyPath, string(policySrc), testPath, string(testSrc))
@@ -314,14 +361,14 @@ func definesDecision(mod *ast.Module) bool {
 	return false
 }
 
-func (c *checker) checkLiterals(where string, mod *ast.Module) {
+func (c *checker) checkLiterals(where, file string, mod *ast.Module) {
 	reported := map[string]bool{}
 	ast.WalkTerms(mod, func(t *ast.Term) bool {
 		if n, ok := t.Value.(ast.Number); ok {
 			lit := n.String()
 			if !allowedLiterals[lit] && !reported[lit] {
 				reported[lit] = true
-				c.add(where+"/policy.rego", "literal %s looks like policy data; limits belong in input.values (signed bank state), not in Git", lit)
+				c.add(where+"/"+file, "literal %s looks like policy data; limits belong in input.values (signed bank state), not in Git", lit)
 			}
 		}
 		return false
@@ -341,6 +388,12 @@ func (c *checker) checkReasons(where string, e entry, mod *ast.Module) {
 			registered[r.Reason] = true
 		}
 	}
+	c.walkReasons(where+"/policy.rego", e.Profile, "for "+e.Profile, mod, registered, c.used)
+}
+
+// walkReasons is the reason scan shared by rulesets and templates. owner is the profile or
+// rule type, registered is what that owner may return, and used records what it does.
+func (c *checker) walkReasons(file, owner, label string, mod *ast.Module, registered, used map[string]bool) {
 	reported := map[string]bool{}
 	ast.WalkTerms(mod, func(t *ast.Term) bool {
 		s, ok := t.Value.(ast.String)
@@ -352,21 +405,139 @@ func (c *checker) checkReasons(where string, e entry, mod *ast.Module) {
 		case strings.HasPrefix(lit, "CIP-POL-"):
 			if !c.codes[lit] {
 				reported[lit] = true
-				c.add(where+"/policy.rego", "reason_code %q is not one of the allowed CIP-POL codes", lit)
+				c.add(file, "reason_code %q is not one of the allowed CIP-POL codes", lit)
 			}
 		case reasonRe.MatchString(lit):
 			reported[lit] = true
 			switch {
 			case c.reserved[lit]:
-				c.add(where+"/policy.rego", "reason %s is reserved for the PDS; a rule must not return it", lit)
+				c.add(file, "reason %s is reserved for the PDS; a rule must not return it", lit)
 			case !registered[lit]:
-				c.add(where+"/policy.rego", "reason %s is not registered for %s in %s", lit, e.Profile, reasonsRel)
+				c.add(file, "reason %s is not registered %s in %s", lit, label, reasonsRel)
 			default:
-				c.used[e.Profile+"|"+lit] = true
+				used[owner+"|"+lit] = true
 			}
 		}
 		return false
 	})
+}
+
+// ---- templates (P1) ----------------------------------------------------------------------
+
+// checkTemplates inspects templates/<rule_type>/: rule.rego, rule_test.rego and template.json.
+// A template is generic Rego for one catalogue rule type; the PDS runs it for every profile
+// a binding names it for, so the checks are the ruleset checks, once per template.
+func (c *checker) checkTemplates(ctx context.Context) error {
+	dirs, err := os.ReadDir(filepath.Join(c.root, templatesRel))
+	if err != nil {
+		return nil // no templates directory: a P0-only repository
+	}
+	for _, d := range dirs {
+		if !d.IsDir() {
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		c.checkTemplate(ctx, d.Name())
+	}
+	return nil
+}
+
+func (c *checker) checkTemplate(ctx context.Context, name string) {
+	ruleType := strings.ToUpper(name)
+	where := "template " + ruleType
+	if !templateRe.MatchString(name) {
+		c.add(templatesRel+"/"+name, "directory name must be the rule type in lower snake case")
+		return
+	}
+	c.tplTypes[ruleType] = true
+	dir := filepath.Join(c.root, templatesRel, name)
+	rulePath, testPath := filepath.Join(dir, "rule.rego"), filepath.Join(dir, "rule_test.rego")
+
+	c.checkTemplateMeta(where, ruleType, filepath.Join(dir, "template.json"))
+
+	src, err := os.ReadFile(rulePath)
+	if err != nil {
+		c.add(where, "missing rule.rego")
+		return
+	}
+	testSrc, testErr := os.ReadFile(testPath)
+	if testErr != nil {
+		c.add(where, "missing rule_test.rego: a template without tests is not shippable")
+	}
+	mod, err := ast.ParseModuleWithOpts(rulePath, string(src), ast.ParserOptions{RegoVersion: ast.RegoV1})
+	if err != nil {
+		c.add(where, "rule.rego does not parse: %v", err)
+		return
+	}
+	if got, want := mod.Package.Path.String(), "data."+templatePackageFor(ruleType); got != want {
+		c.add(where, "rule.rego declares package %s, the bundle expects %s", got, want)
+	}
+	if !definesDecision(mod) {
+		c.add(where, "rule.rego defines no decision rule: the PDS reads data.<package>.decision")
+	}
+	c.checkLiterals(where, "rule.rego", mod)
+	if c.reg != nil {
+		registered := map[string]bool{}
+		for _, r := range c.reg.TemplateReasons {
+			if r.RuleType == ruleType {
+				registered[r.Reason] = true
+			}
+		}
+		c.walkReasons(where+"/rule.rego", ruleType, "for template "+ruleType, mod, registered, c.tplUsed)
+	}
+	if testErr == nil {
+		c.runRegoTests(ctx, where, rulePath, string(src), testPath, string(testSrc))
+	}
+}
+
+// templatePackageFor is the package a template must declare, the PDS's own rule:
+// "AMOUNT_PER_TXN" -> "cip.pde.template.amount_per_txn".
+func templatePackageFor(ruleType string) string {
+	return "cip.pde.template." + strings.ToLower(ruleType)
+}
+
+func (c *checker) checkTemplateMeta(where, ruleType, path string) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		c.add(where, "missing template.json: it says which facts the template reads")
+		return
+	}
+	var m templateMeta
+	if err := decodeStrict(raw, &m); err != nil {
+		c.add(where+"/template.json", "not valid template metadata: %v", err)
+		return
+	}
+	if m.RuleType != ruleType {
+		c.add(where+"/template.json", "rule_type %q must be %q, the directory's rule type", m.RuleType, ruleType)
+	}
+	names := make([]string, 0, len(m.RequiresFacts))
+	for n := range m.RequiresFacts {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		if t := m.RequiresFacts[n]; t != "string" && t != "int" && t != "bool" {
+			c.add(where+"/template.json", "required fact %q has unknown type %q", n, t)
+		}
+	}
+}
+
+// checkStaleTemplates reports template reasons registered for a rule type that has no
+// template, or that no template produces.
+func (c *checker) checkStaleTemplates() {
+	if c.reg == nil {
+		return
+	}
+	for _, r := range c.reg.TemplateReasons {
+		switch {
+		case !c.tplTypes[r.RuleType]:
+			c.add(reasonsRel, "template %s/%s: registered for a rule type that has no template", r.RuleType, r.Reason)
+		case !c.tplUsed[r.RuleType+"|"+r.Reason]:
+			c.add(reasonsRel, "template %s/%s: registered but never produced by its template", r.RuleType, r.Reason)
+		}
+	}
 }
 
 func (c *checker) checkStale(m *manifest) {

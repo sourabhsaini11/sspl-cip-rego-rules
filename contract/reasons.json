@@ -63,6 +63,44 @@
       "reason_code": "CIP-POL-TRUST"
     }
   ],
+  "template_reasons": [
+    {
+      "rule_type": "AMOUNT_PER_TXN",
+      "reason": "AMOUNT_WITHIN_LIMIT",
+      "verdict": "ALLOW",
+      "reason_code": ""
+    },
+    {
+      "rule_type": "AMOUNT_PER_TXN",
+      "reason": "AMOUNT_OVER_LIMIT",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
+      "rule_type": "DATE_RANGE",
+      "reason": "RANGE_WITHIN_LIMIT",
+      "verdict": "ALLOW",
+      "reason_code": ""
+    },
+    {
+      "rule_type": "DATE_RANGE",
+      "reason": "RANGE_OVER_LIMIT",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
+      "rule_type": "TIME_WINDOW",
+      "reason": "WINDOW_OPEN",
+      "verdict": "ALLOW",
+      "reason_code": ""
+    },
+    {
+      "rule_type": "TIME_WINDOW",
+      "reason": "WINDOW_CLOSED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-DENY"
+    }
+  ],
   "reserved_for_pds": [
     "POLICY_REF_MISMATCH",
     "RULE_UNDEFINED"

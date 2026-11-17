@@ -1,0 +1,4 @@
+{
+  "rule_type": "DATE_RANGE",
+  "requires_facts": {"from_date": "string", "to_date": "string"}
+}

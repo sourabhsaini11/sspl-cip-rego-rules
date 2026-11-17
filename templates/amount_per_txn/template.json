@@ -1,0 +1,4 @@
+{
+  "rule_type": "AMOUNT_PER_TXN",
+  "requires_facts": {"amount_inr": "int"}
+}

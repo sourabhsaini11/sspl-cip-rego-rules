@@ -48,7 +48,7 @@ func requireProblem(t *testing.T, got []string, parts ...string) {
 func scratch(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	for _, d := range []string{"rulesets", "contract"} {
+	for _, d := range []string{"rulesets", "contract", "templates"} {
 		require.NoError(t, os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join(repoRoot, d))))
 	}
 	return root
@@ -68,9 +68,10 @@ func replaceAll(old, repl string) func(string) string {
 	return func(s string) string { return strings.ReplaceAll(s, old, repl) }
 }
 
-func editJSON(t *testing.T, root, rel string, f func(map[string]any)) {
+// editReasons rewrites the reason registry through f.
+func editReasons(t *testing.T, root string, f func(map[string]any)) {
 	t.Helper()
-	p := filepath.Join(root, rel)
+	p := filepath.Join(root, reasonsRel)
 	b, err := os.ReadFile(p)
 	require.NoError(t, err)
 	var m map[string]any
@@ -118,7 +119,7 @@ func TestEachKindOfDefectIsCaught(t *testing.T) {
 			edit(t, r, upiPolicy, replaceAll(`"WITHIN_LIMITS"`, `"WITHIN_THE_LIMITS"`))
 		}, []string{"WITHIN_THE_LIMITS", "not registered"}},
 		{"a registered reason no rule produces", func(t *testing.T, r string) {
-			editJSON(t, r, reasonsRel, func(m map[string]any) {
+			editReasons(t, r, func(m map[string]any) {
 				m["reasons"] = append(m["reasons"].([]any), map[string]any{
 					"profile": "BRIDGE-UPI", "reason": "NEVER_USED", "verdict": "REJECT", "reason_code": "CIP-POL-DENY",
 				})
@@ -131,14 +132,14 @@ func TestEachKindOfDefectIsCaught(t *testing.T) {
 			edit(t, r, upiPolicy, replaceAll(`"CIP-POL-LIMIT"`, `"CIP-POL-FOO"`))
 		}, []string{"CIP-POL-FOO"}},
 		{"a registry entry whose verdict and code disagree", func(t *testing.T, r string) {
-			editJSON(t, r, reasonsRel, func(m map[string]any) {
+			editReasons(t, r, func(m map[string]any) {
 				first := m["reasons"].([]any)[0].(map[string]any)
 				first["verdict"] = "REJECT"
 				first["reason_code"] = ""
 			})
 		}, []string{"reason_code"}},
 		{"a duplicate registry entry", func(t *testing.T, r string) {
-			editJSON(t, r, reasonsRel, func(m map[string]any) {
+			editReasons(t, r, func(m map[string]any) {
 				rs := m["reasons"].([]any)
 				m["reasons"] = append(rs, rs[0])
 			})
@@ -175,6 +176,82 @@ func TestEachKindOfDefectIsCaught(t *testing.T) {
 		{"a policy with no decision", func(t *testing.T, r string) {
 			edit(t, r, balPolicy, replaceAll("decision :=", "verdict :="))
 		}, []string{"decision"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			root := scratch(t)
+			c.mutate(t, root)
+			requireProblem(t, problems(t, root), c.want...)
+		})
+	}
+}
+
+const (
+	amountRule  = "templates/amount_per_txn/rule.rego"
+	amountTests = "templates/amount_per_txn/rule_test.rego"
+	amountMeta  = "templates/amount_per_txn/template.json"
+	windowRule  = "templates/time_window/rule.rego"
+)
+
+// The P1 templates (docs/rego-rule-sources.md) get the same scrutiny as the rulesets: no
+// data, every reason registered, tests that pass. A template is code that runs for every
+// profile bound to it, so a defect here is wider than one ruleset.
+func TestEachKindOfTemplateDefectIsCaught(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(t *testing.T, root string)
+		want   []string
+	}{
+		{"a limit written into a template", func(t *testing.T, r string) {
+			edit(t, r, amountRule, func(s string) string { return s + "\ncap := 99999\n" })
+		}, []string{"literal 99999", "AMOUNT_PER_TXN"}},
+		{"a template reason that is not registered", func(t *testing.T, r string) {
+			edit(t, r, amountRule, replaceAll(`"AMOUNT_OVER_LIMIT"`, `"AMOUNT_TOO_BIG"`))
+		}, []string{"AMOUNT_TOO_BIG", "not registered"}},
+		{"a registered template reason no template produces", func(t *testing.T, r string) {
+			editReasons(t, r, func(m map[string]any) {
+				m["template_reasons"] = append(m["template_reasons"].([]any), map[string]any{
+					"rule_type": "AMOUNT_PER_TXN", "reason": "NEVER_USED", "verdict": "REJECT", "reason_code": "CIP-POL-LIMIT",
+				})
+			})
+		}, []string{"NEVER_USED", "never produced"}},
+		{"a template reason registered for a rule type with no template", func(t *testing.T, r string) {
+			editReasons(t, r, func(m map[string]any) {
+				m["template_reasons"] = append(m["template_reasons"].([]any), map[string]any{
+					"rule_type": "QUOTA", "reason": "QUOTA_HIT", "verdict": "REJECT", "reason_code": "CIP-POL-LIMIT",
+				})
+			})
+		}, []string{"QUOTA", "no template"}},
+		{"a template returning a reason the PDS keeps for itself", func(t *testing.T, r string) {
+			edit(t, r, amountRule, replaceAll(`"AMOUNT_OVER_LIMIT"`, `"RULE_UNDEFINED"`))
+		}, []string{"RULE_UNDEFINED", "reserved"}},
+		{"a template reason_code outside the four CIP-POL codes", func(t *testing.T, r string) {
+			edit(t, r, amountRule, replaceAll(`"CIP-POL-LIMIT"`, `"CIP-POL-FOO"`))
+		}, []string{"CIP-POL-FOO"}},
+		{"a template in the wrong package", func(t *testing.T, r string) {
+			edit(t, r, amountRule, replaceAll("package cip.pde.template.amount_per_txn", "package cip.pde.template.other"))
+		}, []string{"package", "AMOUNT_PER_TXN"}},
+		{"a template with no decision", func(t *testing.T, r string) {
+			edit(t, r, windowRule, replaceAll("decision :=", "verdict :="))
+		}, []string{"decision", "TIME_WINDOW"}},
+		{"a template that does not parse", func(t *testing.T, r string) {
+			edit(t, r, amountRule, func(s string) string { return s + "\n{{{\n" })
+		}, []string{"parse", "AMOUNT_PER_TXN"}},
+		{"a template with no tests", func(t *testing.T, r string) { remove(t, r, amountTests) }, []string{"rule_test.rego"}},
+		{"a failing template test", func(t *testing.T, r string) {
+			edit(t, r, amountRule, replaceAll("input.facts.amount_inr <= limit", "input.facts.amount_inr < limit"))
+		}, []string{"Rego test"}},
+		{"a template with no rule file", func(t *testing.T, r string) { remove(t, r, amountRule) }, []string{"rule.rego"}},
+		{"a template with no metadata", func(t *testing.T, r string) { remove(t, r, amountMeta) }, []string{"template.json"}},
+		{"metadata for another rule type", func(t *testing.T, r string) {
+			edit(t, r, amountMeta, replaceAll(`"AMOUNT_PER_TXN"`, `"DATE_RANGE"`))
+		}, []string{"template.json", "rule_type"}},
+		{"metadata with an unknown fact type", func(t *testing.T, r string) {
+			edit(t, r, amountMeta, replaceAll(`"int"`, `"float"`))
+		}, []string{"template.json", "unknown type"}},
+		{"a template registry that is missing", func(t *testing.T, r string) {
+			editReasons(t, r, func(m map[string]any) { delete(m, "template_reasons") })
+		}, []string{"AMOUNT_WITHIN_LIMIT", "not registered"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
