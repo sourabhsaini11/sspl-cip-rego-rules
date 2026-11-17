@@ -1,0 +1,76 @@
+{
+  "registry_version": 1,
+  "description": "Reasons the rules may return. The bundle pipeline checks every ruleset against this list (PDS LLD 03-B: the PDS does not reject an unregistered reason at run time).",
+  "reasons": [
+    {
+      "profile": "BRIDGE-UPI",
+      "reason": "WITHIN_LIMITS",
+      "verdict": "ALLOW",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "reason": "NIGHT_CAP_EXCEEDED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "reason": "PER_TXN_LIMIT_EXCEEDED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "reason": "DAILY_LIMIT_EXCEEDED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
+      "profile": "BRIDGE-AEPS",
+      "reason": "WITHIN_CEILING",
+      "verdict": "ALLOW",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-AEPS",
+      "reason": "DAILY_CEILING_EXCEEDED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "reason": "INVALID_AMOUNT",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-DENY"
+    },
+    {
+      "profile": "BRIDGE-AEPS",
+      "reason": "INVALID_AMOUNT",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-DENY"
+    },
+    {
+      "profile": "BRIDGE-BALANCE-INQUIRY",
+      "reason": "AUTH_FACTOR_ACCEPTED",
+      "verdict": "ALLOW",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-BALANCE-INQUIRY",
+      "reason": "AUTH_FACTOR_NOT_ACCEPTED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-TRUST"
+    }
+  ],
+  "reserved_for_pds": [
+    "POLICY_REF_MISMATCH",
+    "RULE_UNDEFINED"
+  ],
+  "allowed_reason_codes": [
+    "CIP-POL-DENY",
+    "CIP-POL-CONSENT",
+    "CIP-POL-TRUST",
+    "CIP-POL-LIMIT"
+  ]
+}

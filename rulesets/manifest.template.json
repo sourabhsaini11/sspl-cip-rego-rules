@@ -1,0 +1,11 @@
+{
+  "bundle_id": "pde-rules",
+  "revision": "2026.10.27-1",
+  "input_contract": "v1",
+  "git_commit": "0000000000000000000000000000000000000000",
+  "rulesets": [
+    {"profile": "BRIDGE-UPI",  "version": "v5", "package": "cip.pde.bridge_upi.v5",  "path": "bridge_upi/v5"},
+    {"profile": "BRIDGE-AEPS", "version": "v2", "package": "cip.pde.bridge_aeps.v2", "path": "bridge_aeps/v2"},
+    {"profile": "BRIDGE-BALANCE-INQUIRY", "version": "v1", "package": "cip.pde.bridge_balance_inquiry.v1", "path": "bridge_balance_inquiry/v1"}
+  ]
+}

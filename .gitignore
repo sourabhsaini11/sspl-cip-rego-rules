@@ -1,0 +1,9 @@
+# build output and local tooling
+/bin/
+*.test
+*.out
+# a signed manifest is made by the pipeline, never committed
+/rulesets/manifest.json
+# local environment
+.env
+.DS_Store
