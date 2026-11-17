@@ -4,8 +4,65 @@
   "input_contract": "v1",
   "git_commit": "0000000000000000000000000000000000000000",
   "rulesets": [
-    {"profile": "BRIDGE-UPI",  "version": "v5", "package": "cip.pde.bridge_upi.v5",  "path": "bridge_upi/v5"},
-    {"profile": "BRIDGE-AEPS", "version": "v2", "package": "cip.pde.bridge_aeps.v2", "path": "bridge_aeps/v2"},
-    {"profile": "BRIDGE-BALANCE-INQUIRY", "version": "v1", "package": "cip.pde.bridge_balance_inquiry.v1", "path": "bridge_balance_inquiry/v1"}
+    {
+      "profile": "BRIDGE-UPI",
+      "version": "v5",
+      "package": "cip.pde.bridge_upi.v5",
+      "path": "bridge_upi/v5"
+    },
+    {
+      "profile": "BRIDGE-AEPS",
+      "version": "v2",
+      "package": "cip.pde.bridge_aeps.v2",
+      "path": "bridge_aeps/v2"
+    },
+    {
+      "profile": "BRIDGE-BALANCE-INQUIRY",
+      "version": "v1",
+      "package": "cip.pde.bridge_balance_inquiry.v1",
+      "path": "bridge_balance_inquiry/v1"
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "version": "v6",
+      "package": "cip.pde.bridge_upi.v6",
+      "path": "bridge_upi/v6"
+    },
+    {
+      "profile": "BRIDGE-AEPS",
+      "version": "v3",
+      "package": "cip.pde.bridge_aeps.v3",
+      "path": "bridge_aeps/v3"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "version": "v1",
+      "package": "cip.pde.bridge_mobile_banking.v1",
+      "path": "bridge_mobile_banking/v1"
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "version": "v1",
+      "package": "cip.pde.bridge_internet_banking.v1",
+      "path": "bridge_internet_banking/v1"
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "version": "v1",
+      "package": "cip.pde.bridge_branch_banking.v1",
+      "path": "bridge_branch_banking/v1"
+    },
+    {
+      "profile": "BRIDGE-KCC",
+      "version": "v1",
+      "package": "cip.pde.bridge_kcc.v1",
+      "path": "bridge_kcc/v1"
+    },
+    {
+      "profile": "BRIDGE-BBPS",
+      "version": "v1",
+      "package": "cip.pde.bridge_bbps.v1",
+      "path": "bridge_bbps/v1"
+    }
   ]
 }

@@ -1,0 +1,7 @@
+{
+  "fields": {
+    "amount_inr": {"type": "int", "required": true},
+    "payee_vpa": {"type": "string", "required": true},
+    "device_verified": {"type": "bool", "required": true}
+  }
+}

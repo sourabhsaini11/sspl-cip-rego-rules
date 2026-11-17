@@ -1,0 +1,9 @@
+{
+  "fields": {
+    "land_document_area_milli_acres": {"type": "int", "required": true},
+    "cultivation_area_milli_acres": {"type": "int", "required": true},
+    "land_document_digest": {"type": "string", "required": true},
+    "cultivation_record_digest": {"type": "string", "required": true},
+    "source_ref": {"type": "string", "required": false}
+  }
+}

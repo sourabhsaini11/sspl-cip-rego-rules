@@ -109,3 +109,34 @@ Zone owners: `../sspl-cip-policy-decision-service/docs/policy-binding.md`.
 
 `make check` also covers the templates and the template reasons in `contract/reasons.json`
 (`template_reasons`, registered per rule type).
+
+## The worked journeys (PDE architecture document, Part Four)
+
+One ruleset per journey, written as a new version or a new profile (a shipped version is never edited). The values are
+the document's dummy examples in the tests, not SSPL-approved limits. **Profile codes, operation codes, fact names and
+value keys below are provisional: they are our proposal, to be verified with the Resolution Engine and the Definition
+Catalogue owners** (the bank's values arrive in the signed state under these keys).
+
+| Journey | Ruleset | Operations | Results it can give | Values the bank's state must publish |
+|---|---|---|---|---|
+| 1 UPI step-up (UPI-R19) | `BRIDGE-UPI v6` | `UPI_PAY` | PERMIT, STEP_UP (`UPI_DEVICE_RISK`, obligation `OTP_OR_APPROVED_FACTOR`), DENY | `per_txn_limit_inr`, `daily_limit_inr`, `night_cap_inr`, `step_up_threshold_inr` |
+| 2 Mobile device enrolment | `BRIDGE-MOBILE-BANKING v1` | `DEVICE_ENROL`, `BALANCE_ENQUIRY` | PERMIT, STEP_UP, DENY (`BANK_SCOPE_MISMATCH`) | none |
+| 3 New beneficiary cooling period | `BRIDGE-INTERNET-BANKING v1` | `ADD_BENEFICIARY`, `TRANSFER_TO_BENEFICIARY` | PERMIT, DENY (`WAIT_COOLING_PERIOD`), STEP_UP | `cooling_period_minutes` |
+| 4 Teller cash withdrawal | `BRIDGE-BRANCH-BANKING v1` | `CASH_WITHDRAWAL` | PERMIT, REFER (`BRANCH_LIMIT_01`, `REQUIRE_DUAL_CONTROL`), DENY (`SEGREGATION_OF_DUTIES`) | `branch_delegation_limit_inr` |
+| 5 KCC evidence | `BRIDGE-KCC v1` | `KCC_ASSESS` | PERMIT (prerequisites hold), REFER (`LAND_EVIDENCE_MISMATCH`), NEED_EVIDENCE | `kcc_area_tolerance_milli_acres` |
+| 6 AePS BC withdrawal | `BRIDGE-AEPS v3` | `AEPS_WITHDRAWAL` | PERMIT, REFER (`BC_EXPOSURE_LIMIT_EXCEEDED`), DENY | `daily_ceiling_inr`, `step_up_threshold_inr`, `bc_daily_exposure_limit_inr` |
+| 7 BBPS biller eligibility | `BRIDGE-BBPS v1` | `BILL_PAYMENT` | PERMIT, DENY (`BILLER_NOT_ENABLED`) | `enabled_biller_classes`, `permitted_instruments` (lists of names) |
+
+Not here, on purpose: journey 8 (internal control-plane release access) runs in the Landing Zone's Control Plane OPA,
+not in the PDS; journey 9 (Inference plane) is outside the PDS. `DEFER_UNAVAILABLE` ("policy not loaded") is the PDS's own
+answer, never a rule's. **Every ruleset is fail-closed on its limits**: a limit that is missing or not a whole number
+leaves `decision` undefined (the PDS records `RULE_UNDEFINED`), and each rule is guarded by a positive check so that a
+missing value can never let a request through. The PDS repository runs every journey through the real engine
+(`tests/assembly/journeys_test.go`).
+
+## Strings that are not reasons
+
+The gate reads every UPPER_SNAKE string in a policy as a reason, so an operation code or an obligation reference must be
+registered in `contract/reasons.json` under `literals` (`kind`: `OPERATION` or `OBLIGATION`). A fact's enum values
+need no registration: they come from the ruleset's `fact-schema.json`. A registered literal nothing uses, one that is also
+a reason, or one for a profile not in the manifest, fails the gate.

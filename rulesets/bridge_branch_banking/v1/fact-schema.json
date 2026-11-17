@@ -1,0 +1,11 @@
+{
+  "fields": {
+    "amount_inr": {"type": "int", "required": true},
+    "teller_role_valid": {"type": "bool", "required": true},
+    "teller_id": {"type": "string", "required": true},
+    "intent_digest": {"type": "string", "required": true},
+    "supervisor_id": {"type": "string", "required": false},
+    "supervisor_session_fresh": {"type": "bool", "required": false},
+    "approval_intent_digest": {"type": "string", "required": false}
+  }
+}

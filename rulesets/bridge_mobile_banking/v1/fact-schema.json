@@ -1,0 +1,8 @@
+{
+  "fields": {
+    "device_trust": {"type": "enum", "required": true, "enum": ["KNOWN", "UNKNOWN", "REVOKED"]},
+    "consent": {"type": "enum", "required": true, "enum": ["VALID", "MISSING", "EXPIRED"]},
+    "session_valid": {"type": "bool", "required": true},
+    "subject_bank_id": {"type": "string", "required": true}
+  }
+}

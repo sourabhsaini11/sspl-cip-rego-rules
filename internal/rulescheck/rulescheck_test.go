@@ -330,3 +330,55 @@ func TestTheReasonsTheEvaluatorOwnsAreReservedForThePDS(t *testing.T) {
 		})
 	}
 }
+
+// ---- literals that are not reasons: operations and obligations ----
+
+func TestAnUnregisteredOperationOrObligationIsCaught(t *testing.T) {
+	root := scratch(t)
+	edit(t, root, "rulesets/bridge_mobile_banking/v1/policy.rego", replaceAll(`"REAUTHENTICATE_SESSION"`, `"RENAMED_OBLIGATION"`))
+
+	requireProblem(t, problems(t, root), "RENAMED_OBLIGATION", "not registered")
+}
+
+func TestARegisteredLiteralNoRulesetUsesIsCaught(t *testing.T) {
+	root := scratch(t)
+	editReasons(t, root, func(m map[string]any) {
+		m["literals"] = append(m["literals"].([]any), map[string]any{"profile": "BRIDGE-UPI", "literal": "NOBODY_USES_THIS", "kind": "OBLIGATION"})
+	})
+
+	requireProblem(t, problems(t, root), "BRIDGE-UPI/NOBODY_USES_THIS", "never used")
+}
+
+func TestALiteralMustHaveAKnownKindAndNotBeAReason(t *testing.T) {
+	root := scratch(t)
+	editReasons(t, root, func(m map[string]any) {
+		lits := m["literals"].([]any)
+		lits = append(lits,
+			map[string]any{"profile": "BRIDGE-UPI", "literal": "BAD_KIND", "kind": "SECRET"},
+			map[string]any{"profile": "BRIDGE-UPI", "literal": "WITHIN_LIMITS", "kind": "OBLIGATION"},
+			map[string]any{"profile": "BRIDGE-UPI", "literal": "RULE_UNDEFINED", "kind": "OPERATION"})
+		m["literals"] = lits
+	})
+
+	got := problems(t, root)
+	requireProblem(t, got, "BAD_KIND", "kind must be")
+	requireProblem(t, got, "WITHIN_LIMITS", "also registered as a reason")
+	requireProblem(t, got, "RULE_UNDEFINED", "reserved")
+}
+
+func TestAFactEnumValueIsNotAReasonAndNeedsNoRegistration(t *testing.T) {
+	// the mobile ruleset compares device_trust to KNOWN, UNKNOWN and REVOKED: none is registered
+	root := scratch(t)
+	for _, p := range problems(t, root) {
+		require.NotContains(t, p, "KNOWN", "an enum value of the fact schema is not a reason")
+	}
+}
+
+func TestALiteralForAProfileNotInTheManifestIsCaught(t *testing.T) {
+	root := scratch(t)
+	editReasons(t, root, func(m map[string]any) {
+		m["literals"] = append(m["literals"].([]any), map[string]any{"profile": "BRIDGE-GHOST", "literal": "SOME_OP", "kind": "OPERATION"})
+	})
+
+	requireProblem(t, problems(t, root), "BRIDGE-GHOST", "not in the manifest")
+}

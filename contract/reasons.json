@@ -61,6 +61,263 @@
       "reason": "AUTH_FACTOR_NOT_ACCEPTED",
       "verdict": "REJECT",
       "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "reason": "UPI_DEVICE_RISK",
+      "verdict": "STEP_UP",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-AEPS",
+      "reason": "BC_NOT_AUTHORISED",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-AEPS",
+      "reason": "BC_EXPOSURE_LIMIT_EXCEEDED",
+      "verdict": "REFER",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "reason": "BANK_SCOPE_MISMATCH",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-DENY"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "reason": "DEVICE_REVOKED",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "reason": "CONSENT_NOT_VALID",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-CONSENT"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "reason": "DEVICE_UNVERIFIED",
+      "verdict": "STEP_UP",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "reason": "DEVICE_KNOWN",
+      "verdict": "PERMIT",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "reason": "READ_ONLY_PERMITTED",
+      "verdict": "PERMIT",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "reason": "SESSION_NOT_VERIFIED",
+      "verdict": "STEP_UP",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "reason": "REGISTRATION_PERMITTED",
+      "verdict": "PERMIT",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "reason": "REGISTRATION_NOT_VERIFIED",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "reason": "WAIT_COOLING_PERIOD",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-DENY"
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "reason": "BENEFICIARY_CHANGED",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "reason": "MFA_REQUIRED",
+      "verdict": "STEP_UP",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "reason": "TRANSFER_PERMITTED",
+      "verdict": "PERMIT",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "reason": "ROLE_NOT_AUTHORISED",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "reason": "INVALID_AMOUNT",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-DENY"
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "reason": "WITHIN_DELEGATION",
+      "verdict": "PERMIT",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "reason": "BRANCH_LIMIT_01",
+      "verdict": "REFER",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "reason": "SEGREGATION_OF_DUTIES",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "reason": "DUAL_CONTROL_SATISFIED",
+      "verdict": "PERMIT",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-KCC",
+      "reason": "SOURCE_REF_REQUIRED",
+      "verdict": "NEED_EVIDENCE",
+      "reason_code": "CIP-POL-DENY"
+    },
+    {
+      "profile": "BRIDGE-KCC",
+      "reason": "LAND_EVIDENCE_MISMATCH",
+      "verdict": "REFER",
+      "reason_code": "CIP-POL-DENY"
+    },
+    {
+      "profile": "BRIDGE-KCC",
+      "reason": "EVIDENCE_CONSISTENT",
+      "verdict": "PERMIT",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-BBPS",
+      "reason": "SUBSCRIPTION_NOT_ACTIVE",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-BBPS",
+      "reason": "SESSION_NOT_VALID",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
+      "profile": "BRIDGE-BBPS",
+      "reason": "BILLER_NOT_ENABLED",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-DENY"
+    },
+    {
+      "profile": "BRIDGE-BBPS",
+      "reason": "INSTRUMENT_NOT_PERMITTED",
+      "verdict": "DENY",
+      "reason_code": "CIP-POL-DENY"
+    },
+    {
+      "profile": "BRIDGE-BBPS",
+      "reason": "BILLER_ELIGIBLE",
+      "verdict": "PERMIT",
+      "reason_code": ""
+    }
+  ],
+  "literals": [
+    {
+      "profile": "BRIDGE-UPI",
+      "literal": "OTP_OR_APPROVED_FACTOR",
+      "kind": "OBLIGATION"
+    },
+    {
+      "profile": "BRIDGE-AEPS",
+      "literal": "BANK_OVERRIDE_REQUIRED",
+      "kind": "OBLIGATION"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "literal": "DEVICE_ENROL",
+      "kind": "OPERATION"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "literal": "BALANCE_ENQUIRY",
+      "kind": "OPERATION"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "literal": "DEVICE_BINDING_OR_INDEPENDENT_AUTH",
+      "kind": "OBLIGATION"
+    },
+    {
+      "profile": "BRIDGE-MOBILE-BANKING",
+      "literal": "REAUTHENTICATE_SESSION",
+      "kind": "OBLIGATION"
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "literal": "ADD_BENEFICIARY",
+      "kind": "OPERATION"
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "literal": "TRANSFER_TO_BENEFICIARY",
+      "kind": "OPERATION"
+    },
+    {
+      "profile": "BRIDGE-INTERNET-BANKING",
+      "literal": "MFA_FOR_TRANSFER",
+      "kind": "OBLIGATION"
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "literal": "CASH_WITHDRAWAL",
+      "kind": "OPERATION"
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "literal": "REQUIRE_DUAL_CONTROL",
+      "kind": "OBLIGATION"
+    },
+    {
+      "profile": "BRIDGE-KCC",
+      "literal": "KCC_ASSESS",
+      "kind": "OPERATION"
+    },
+    {
+      "profile": "BRIDGE-KCC",
+      "literal": "CERTIFIED_SOURCE_REQUIRED",
+      "kind": "OBLIGATION"
+    },
+    {
+      "profile": "BRIDGE-KCC",
+      "literal": "PROVIDE_SOURCE_REF",
+      "kind": "OBLIGATION"
+    },
+    {
+      "profile": "BRIDGE-BBPS",
+      "literal": "BILL_PAYMENT",
+      "kind": "OPERATION"
     }
   ],
   "template_reasons": [

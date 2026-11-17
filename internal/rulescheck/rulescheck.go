@@ -80,6 +80,7 @@ type registry struct {
 	Description        string     `json:"description"`
 	Reasons            []regEntry `json:"reasons"`
 	TemplateReasons    []tplEntry `json:"template_reasons"`
+	Literals           []litEntry `json:"literals"`
 	ReservedForPDS     []string   `json:"reserved_for_pds"`
 	AllowedReasonCodes []string   `json:"allowed_reason_codes"`
 }
@@ -100,6 +101,19 @@ type templateMeta struct {
 	RequiresFacts map[string]string `json:"requires_facts"`
 }
 
+// litEntry registers an UPPER_SNAKE string a ruleset uses that is not a reason: an operation code it
+// switches on, or an obligation it asks the enforcement point to complete. The gate reads every
+// UPPER_SNAKE string as a reason, so these are told apart by registration (docs/rules-contract.md,
+// section 6). A fact's enum values need no registration: they come from the ruleset's fact schema.
+type litEntry struct {
+	Profile string `json:"profile"`
+	Literal string `json:"literal"`
+	Kind    string `json:"kind"`
+}
+
+// literalKinds are what a registered literal may be.
+var literalKinds = map[string]bool{"OPERATION": true, "OBLIGATION": true}
+
 type regEntry struct {
 	Profile    string `json:"profile"`
 	Reason     string `json:"reason"`
@@ -114,6 +128,7 @@ type checker struct {
 	reserved map[string]bool
 	codes    map[string]bool
 	used     map[string]bool // profile|reason produced by some ruleset
+	litUsed  map[string]bool // profile|literal used by some ruleset
 	tplUsed  map[string]bool // rule_type|reason produced by some template
 	tplTypes map[string]bool // rule types that have a template directory
 }
@@ -125,7 +140,7 @@ func (c *checker) add(where, format string, args ...any) {
 // Check inspects the rulesets and the contract under root. A returned error means the check
 // itself could not run (the context was cancelled); anything wrong with the rules is a Problem.
 func Check(ctx context.Context, root string) ([]Problem, error) {
-	c := &checker{root: root, reserved: map[string]bool{}, codes: map[string]bool{}, used: map[string]bool{}, tplUsed: map[string]bool{}, tplTypes: map[string]bool{}}
+	c := &checker{root: root, reserved: map[string]bool{}, codes: map[string]bool{}, used: map[string]bool{}, litUsed: map[string]bool{}, tplUsed: map[string]bool{}, tplTypes: map[string]bool{}}
 	c.loadRegistry()
 	m := c.loadManifest()
 	if m != nil {
@@ -185,6 +200,29 @@ func (c *checker) loadRegistry() {
 		}
 		seen[who] = true
 		c.checkVerdict(who, e.Verdict, e.ReasonCode)
+	}
+	seenLit := map[string]bool{}
+	for _, e := range r.Literals {
+		who := "literal " + e.Profile + "/" + e.Literal
+		switch {
+		case !profileRe.MatchString(e.Profile):
+			c.add(reasonsRel, "%s: profile is not a valid profile name", who)
+		case !reasonRe.MatchString(e.Literal):
+			c.add(reasonsRel, "%s: literal must be UPPER_SNAKE_CASE", who)
+		case !literalKinds[e.Kind]:
+			c.add(reasonsRel, "%s: kind must be OPERATION or OBLIGATION, got %q", who, e.Kind)
+		case c.reserved[e.Literal] || results[e.Literal]:
+			c.add(reasonsRel, "%s: a reserved reason or a result cannot be a literal", who)
+		}
+		if seenLit[who] {
+			c.add(reasonsRel, "%s: duplicate entry", who)
+		}
+		seenLit[who] = true
+		for _, rr := range r.Reasons {
+			if rr.Profile == e.Profile && rr.Reason == e.Literal {
+				c.add(reasonsRel, "%s: is also registered as a reason; it is one or the other", who)
+			}
+		}
 	}
 	seenTpl := map[string]bool{}
 	for _, e := range r.TemplateReasons {
@@ -398,12 +436,42 @@ func (c *checker) checkReasons(where string, e entry, mod *ast.Module) {
 			registered[r.Reason] = true
 		}
 	}
-	c.walkReasons(where+"/policy.rego", e.Profile, "for "+e.Profile, mod, registered, c.used)
+	literals := map[string]bool{}
+	for _, l := range c.reg.Literals {
+		if l.Profile == e.Profile {
+			literals[l.Literal] = true
+		}
+	}
+	for _, v := range c.enumValues(e) { // a fact's enum values are not reasons
+		literals[v] = true
+	}
+	c.walkReasons(where+"/policy.rego", e.Profile, "for "+e.Profile, mod, registered, c.used, literals, c.litUsed)
+}
+
+// enumValues returns every enum value the ruleset's fact schema declares.
+func (c *checker) enumValues(e entry) []string {
+	raw, err := os.ReadFile(filepath.Join(c.root, "rulesets", filepath.FromSlash(e.Path), "fact-schema.json"))
+	if err != nil {
+		return nil
+	}
+	var s struct {
+		Fields map[string]struct {
+			Enum []string `json:"enum"`
+		} `json:"fields"`
+	}
+	if json.Unmarshal(raw, &s) != nil {
+		return nil
+	}
+	var out []string
+	for _, f := range s.Fields {
+		out = append(out, f.Enum...)
+	}
+	return out
 }
 
 // walkReasons is the reason scan shared by rulesets and templates. owner is the profile or
 // rule type, registered is what that owner may return, and used records what it does.
-func (c *checker) walkReasons(file, owner, label string, mod *ast.Module, registered, used map[string]bool) {
+func (c *checker) walkReasons(file, owner, label string, mod *ast.Module, registered, used, literals, litUsed map[string]bool) {
 	reported := map[string]bool{}
 	ast.WalkTerms(mod, func(t *ast.Term) bool {
 		s, ok := t.Value.(ast.String)
@@ -419,6 +487,8 @@ func (c *checker) walkReasons(file, owner, label string, mod *ast.Module, regist
 			}
 		case results[lit]:
 			// a result, not a reason
+		case literals[lit]:
+			litUsed[owner+"|"+lit] = true // an operation, an obligation or a fact's enum value
 		case reasonRe.MatchString(lit):
 			reported[lit] = true
 			switch {
@@ -497,7 +567,7 @@ func (c *checker) checkTemplate(ctx context.Context, name string) {
 				registered[r.Reason] = true
 			}
 		}
-		c.walkReasons(where+"/rule.rego", ruleType, "for template "+ruleType, mod, registered, c.tplUsed)
+		c.walkReasons(where+"/rule.rego", ruleType, "for template "+ruleType, mod, registered, c.tplUsed, nil, map[string]bool{})
 	}
 	if testErr == nil {
 		c.runRegoTests(ctx, where, rulePath, string(src), testPath, string(testSrc))
@@ -566,6 +636,14 @@ func (c *checker) checkStale(m *manifest) {
 			c.add(reasonsRel, "%s/%s: registered for a profile that is not in the manifest", r.Profile, r.Reason)
 		case !c.used[r.Profile+"|"+r.Reason]:
 			c.add(reasonsRel, "%s/%s: registered but never produced by its rules", r.Profile, r.Reason)
+		}
+	}
+	for _, l := range c.reg.Literals {
+		switch {
+		case !profiles[l.Profile]:
+			c.add(reasonsRel, "literal %s/%s: registered for a profile that is not in the manifest", l.Profile, l.Literal)
+		case !c.litUsed[l.Profile+"|"+l.Literal]:
+			c.add(reasonsRel, "literal %s/%s: registered but never used by its rules", l.Profile, l.Literal)
 		}
 	}
 }

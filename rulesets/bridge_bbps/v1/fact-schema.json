@@ -1,0 +1,9 @@
+{
+  "fields": {
+    "amount_inr": {"type": "int", "required": true},
+    "biller_class": {"type": "string", "required": true},
+    "instrument": {"type": "string", "required": true},
+    "session_valid": {"type": "bool", "required": true},
+    "subscription_active": {"type": "bool", "required": true}
+  }
+}

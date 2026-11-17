@@ -1,0 +1,9 @@
+{
+  "fields": {
+    "maker_authenticated": {"type": "bool", "required": true},
+    "beneficiary_verified": {"type": "bool", "required": true},
+    "beneficiary_age_minutes": {"type": "int", "required": true},
+    "mfa_valid": {"type": "bool", "required": true},
+    "beneficiary_unchanged": {"type": "bool", "required": true}
+  }
+}

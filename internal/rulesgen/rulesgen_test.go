@@ -60,13 +60,13 @@ func readJSON(t *testing.T, path string) map[string]any {
 	return m
 }
 
-func TestAPublishedProfileBecomesBindingsOnItsLatestRuleset(t *testing.T) {
+func TestAPublishedProfileBecomesBindingsOnEveryVersionOfItsRuleset(t *testing.T) {
 	in := setup(t, catalogue, upiProfile("R-UPI-TXN-MAX"))
 
 	rep, err := generate(in)
 
 	require.NoError(t, err)
-	require.Equal(t, 1, rep.Bound)
+	require.Equal(t, 2, rep.Bound, "one rule on each of v5 and v6")
 	b := readJSON(t, filepath.Join(in.out, "bindings/bridge_upi/v5.json"))
 	require.Equal(t, map[string]any{"rules": []any{map[string]any{
 		"rule_id": "R-UPI-TXN-MAX", "rule_type": "AMOUNT_PER_TXN",
@@ -74,7 +74,10 @@ func TestAPublishedProfileBecomesBindingsOnItsLatestRuleset(t *testing.T) {
 	}}}, b)
 
 	m := readJSON(t, filepath.Join(in.out, "manifest.template.json"))
-	require.Equal(t, []any{map[string]any{"profile": "BRIDGE-UPI", "version": "v5", "path": "bindings/bridge_upi/v5.json"}}, m["bindings"])
+	require.Equal(t, []any{
+		map[string]any{"profile": "BRIDGE-UPI", "version": "v5", "path": "bindings/bridge_upi/v5.json"},
+		map[string]any{"profile": "BRIDGE-UPI", "version": "v6", "path": "bindings/bridge_upi/v6.json"},
+	}, m["bindings"])
 	tpls := m["templates"].([]any)
 	require.Len(t, tpls, 3, "every template in the repository ships")
 	require.Equal(t, map[string]any{"rule_type": "AMOUNT_PER_TXN", "package": "cip.pde.template.amount_per_txn", "path": "templates/amount_per_txn"}, tpls[0])
@@ -126,7 +129,7 @@ func TestRuleTypesWithoutATemplateAreSkippedAndReported(t *testing.T) {
 	in := setup(t, catalogue, upiProfile("R-UPI-TXN-MAX", "R-UPI-QUOTA", "R-UPI-ALL-WRITES"))
 	rep, err := generate(in)
 	require.NoError(t, err)
-	require.Equal(t, 1, rep.Bound)
+	require.Equal(t, 2, rep.Bound)
 	require.ElementsMatch(t, []rulesgen.Skip{
 		{RuleID: "R-UPI-QUOTA", Why: "no template for rule type QUOTA"},
 		{RuleID: "R-UPI-ALL-WRITES", Why: `applies to an operation class, not an operation ("op_class: WRITE")`},
