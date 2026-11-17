@@ -88,5 +88,24 @@ decisions: `../sspl-cip-policy-decision-service/docs/rego-rule-sources.md`.
 go run ./cmd/rules-gen -catalogue catalogue.json -profile profile.json -out /path/to/unsigned
 ```
 
+Bindings are written for **every** version of the profile's ruleset in the manifest (a bank pinned to an older
+version still gets its configured limits), or for the versions a profile names in an optional `"versions": [...]`.
+A version that cannot host a configured rule (the template reads a fact its schema lacks) fails the generation
+rather than leaving the rule silently off.
+
+## Policy proposals (Git feeds the Policy Governance Service)
+
+The Landing Zone's Policy Governance Service owns policy approval (PDE architecture document, section 7.1.1);
+this repository is the source it takes reviewed Rego from. One proposal file per ruleset version:
+
+```bash
+go run ./cmd/rules-gen -proposals /path/to/proposals -git-commit "$(git rev-parse HEAD)"
+```
+
+Each file carries the ruleset (profile, version, package, entry point), the input contract, a digest of what
+ships in the bundle (never the tests), the commit, and an empty `review.evidence` the pipeline must fill from the
+merge request: the repository cannot know who approved it. Provisional design, to be verified with the Landing
+Zone owners: `../sspl-cip-policy-decision-service/docs/policy-binding.md`.
+
 `make check` also covers the templates and the template reasons in `contract/reasons.json`
 (`template_reasons`, registered per rule type).

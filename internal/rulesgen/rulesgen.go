@@ -51,6 +51,10 @@ type catalogueRule struct {
 type profileFile struct {
 	Profile string   `json:"profile"`
 	Fields  []string `json:"fields"`
+	// Versions limits the ruleset versions the rules are bound to. Absent means every version of the
+	// profile in the manifest: a bank pinned to an older version must get its configured rules too
+	// (docs/policy-binding.md in the PDS repository, B-9).
+	Versions []string `json:"versions,omitempty"`
 }
 
 type binding struct {
@@ -154,10 +158,56 @@ func bindProfile(root, path string, cat map[string]catalogueRule, m *manifestFil
 	if err := readStrict(path, &p); err != nil {
 		return fmt.Errorf("rulesgen: profile %s: %w", path, err)
 	}
-	rs, ok := latestRuleset(m, p.Profile)
-	if !ok {
-		return fmt.Errorf("rulesgen: profile %s has no ruleset in the manifest", p.Profile)
+	targets, err := targetVersions(m, p)
+	if err != nil {
+		return err
 	}
+	for _, rs := range targets {
+		if err := bindVersion(root, p, rs, cat, m, templates, files, rep); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// targetVersions returns the ruleset versions a profile's rules are bound to: the versions it names,
+// each of which must exist, or every version of the profile in the manifest.
+func targetVersions(m *manifestFile, p profileFile) ([]rulesetEntry, error) {
+	var all []rulesetEntry
+	for _, r := range m.Rulesets {
+		if r.Profile == p.Profile {
+			all = append(all, r)
+		}
+	}
+	if len(all) == 0 {
+		return nil, fmt.Errorf("rulesgen: profile %s has no ruleset in the manifest", p.Profile)
+	}
+	sort.Slice(all, func(i, j int) bool { return versionNumber(all[i].Version) < versionNumber(all[j].Version) })
+	if len(p.Versions) == 0 {
+		return all, nil
+	}
+	var out []rulesetEntry
+	seen := map[string]bool{}
+	for _, v := range p.Versions {
+		if seen[v] {
+			return nil, fmt.Errorf("rulesgen: profile %s lists version %s twice", p.Profile, v)
+		}
+		seen[v] = true
+		found := false
+		for _, r := range all {
+			if r.Version == v {
+				out, found = append(out, r), true
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("rulesgen: profile %s names version %s, which the manifest does not have", p.Profile, v)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return versionNumber(out[i].Version) < versionNumber(out[j].Version) })
+	return out, nil
+}
+
+func bindVersion(root string, p profileFile, rs rulesetEntry, cat map[string]catalogueRule, m *manifestFile, templates map[string]templateMeta, files map[string][]byte, rep *Report) error {
 	schema, err := readSchema(root, rs)
 	if err != nil {
 		return err
@@ -175,11 +225,11 @@ func bindProfile(root, path string, cat map[string]catalogueRule, m *manifestFil
 		}
 		tpl, ok := templates[row.RuleType]
 		if !ok {
-			rep.Skipped = append(rep.Skipped, Skip{RuleID: field, Why: "no template for rule type " + row.RuleType})
+			rep.skip(field, "no template for rule type "+row.RuleType)
 			continue
 		}
 		if class := operationClass(row.AppliesTo); class != "" {
-			rep.Skipped = append(rep.Skipped, Skip{RuleID: field, Why: fmt.Sprintf("applies to an operation class, not an operation (%q)", class)})
+			rep.skip(field, fmt.Sprintf("applies to an operation class, not an operation (%q)", class))
 			continue
 		}
 		if err := checkFacts(p.Profile, rs, schema, field, tpl); err != nil {
@@ -205,6 +255,17 @@ func bindProfile(root, path string, cat map[string]catalogueRule, m *manifestFil
 	m.Bindings = append(m.Bindings, bindingsEntry{Profile: rs.Profile, Version: rs.Version, Path: rel})
 	rep.Bound += len(rules)
 	return nil
+}
+
+// skip records a configured rule that produced no binding. A rule skipped on several versions is
+// reported once.
+func (r *Report) skip(rule, why string) {
+	for _, s := range r.Skipped {
+		if s.RuleID == rule && s.Why == why {
+			return
+		}
+	}
+	r.Skipped = append(r.Skipped, Skip{RuleID: rule, Why: why})
 }
 
 // checkFacts refuses a binding whose template reads a fact the target ruleset's closed fact
@@ -237,16 +298,6 @@ func operationClass(ops []string) string {
 		}
 	}
 	return ""
-}
-
-func latestRuleset(m *manifestFile, profile string) (rulesetEntry, bool) {
-	var best rulesetEntry
-	for _, r := range m.Rulesets {
-		if r.Profile == profile && versionNumber(r.Version) > versionNumber(best.Version) {
-			best = r
-		}
-	}
-	return best, best.Profile != ""
 }
 
 func versionNumber(v string) uint64 {

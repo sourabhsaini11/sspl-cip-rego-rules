@@ -322,7 +322,7 @@ func TestAV2RulesetNamingAResultIsNotMistakenForAReason(t *testing.T) {
 }
 
 func TestTheReasonsTheEvaluatorOwnsAreReservedForThePDS(t *testing.T) {
-	for _, reserved := range []string{"RULE_OUTPUT_INVALID", "RULE_CONFLICT", "PROVIDER_NOT_PERMITTED", "PURPOSE_NOT_PERMITTED", "RELEASE_EXPIRED", "RELEASE_NOT_YET_VALID", "RELEASE_MISSING", "SNAPSHOT_BELOW_MINIMUM", "OPA_UNAVAILABLE", "RULESET_NOT_LOADED", "FACT_MISSING"} {
+	for _, reserved := range []string{"RULE_OUTPUT_INVALID", "RULE_CONFLICT", "PROVIDER_NOT_PERMITTED", "PURPOSE_NOT_PERMITTED", "RELEASE_EXPIRED", "RELEASE_NOT_YET_VALID", "RELEASE_MISSING", "SNAPSHOT_BELOW_MINIMUM", "OPA_UNAVAILABLE", "RULESET_NOT_LOADED", "FACT_MISSING", "POLICY_BINDING_MISSING"} {
 		t.Run(reserved, func(t *testing.T) {
 			root := scratch(t)
 			edit(t, root, aepsPolicy, replaceAll(`"DAILY_CEILING_EXCEEDED"`, `"`+reserved+`"`))

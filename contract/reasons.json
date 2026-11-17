@@ -114,7 +114,8 @@
     "SNAPSHOT_BELOW_MINIMUM",
     "OPA_UNAVAILABLE",
     "RULESET_NOT_LOADED",
-    "FACT_MISSING"
+    "FACT_MISSING",
+    "POLICY_BINDING_MISSING"
   ],
   "allowed_reason_codes": [
     "CIP-POL-DENY",
