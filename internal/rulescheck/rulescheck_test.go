@@ -321,8 +321,8 @@ func TestAV2RulesetNamingAResultIsNotMistakenForAReason(t *testing.T) {
 	require.Empty(t, problems(t, root), "STEP_UP is a result, not an unregistered reason")
 }
 
-func TestTheReasonsOfAnIndeterminateResultBelongToThePDS(t *testing.T) {
-	for _, reserved := range []string{"RULE_OUTPUT_INVALID", "RULE_CONFLICT"} {
+func TestTheReasonsTheEvaluatorOwnsAreReservedForThePDS(t *testing.T) {
+	for _, reserved := range []string{"RULE_OUTPUT_INVALID", "RULE_CONFLICT", "PROVIDER_NOT_PERMITTED", "PURPOSE_NOT_PERMITTED"} {
 		t.Run(reserved, func(t *testing.T) {
 			root := scratch(t)
 			edit(t, root, aepsPolicy, replaceAll(`"DAILY_CEILING_EXCEEDED"`, `"`+reserved+`"`))

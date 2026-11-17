@@ -105,7 +105,9 @@
     "POLICY_REF_MISMATCH",
     "RULE_UNDEFINED",
     "RULE_OUTPUT_INVALID",
-    "RULE_CONFLICT"
+    "RULE_CONFLICT",
+    "PROVIDER_NOT_PERMITTED",
+    "PURPOSE_NOT_PERMITTED"
   ],
   "allowed_reason_codes": [
     "CIP-POL-DENY",
