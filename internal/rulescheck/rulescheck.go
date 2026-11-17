@@ -205,18 +205,28 @@ func (c *checker) loadRegistry() {
 	}
 }
 
+// results are the seven results of the PDE architecture document (section 8). A v2 ruleset
+// returns one as a string, so the reason scan must not mistake it for a reason.
+var results = map[string]bool{
+	"PERMIT": true, "DENY": true, "STEP_UP": true, "NEED_EVIDENCE": true,
+	"REFER": true, "DEFER_UNAVAILABLE": true, "INDETERMINATE": true,
+}
+
+// checkVerdict validates a registered reason's verdict and class. The verdict is one of the
+// seven results, or ALLOW or REJECT for a contract v1 ruleset. Only a permit (PERMIT, ALLOW)
+// carries no reason_code; every other verdict needs one of the four platform classes.
 func (c *checker) checkVerdict(who, verdict, code string) {
-	switch verdict {
-	case "ALLOW":
+	switch {
+	case verdict == "ALLOW" || verdict == "PERMIT":
 		if code != "" {
-			c.add(reasonsRel, "%s: an ALLOW reason carries no reason_code, got %q", who, code)
+			c.add(reasonsRel, "%s: a %s reason carries no reason_code, got %q", who, verdict, code)
 		}
-	case "REJECT":
+	case verdict == "REJECT" || results[verdict]:
 		if !c.codes[code] {
-			c.add(reasonsRel, "%s: a REJECT reason needs a reason_code from allowed_reason_codes, got %q", who, code)
+			c.add(reasonsRel, "%s: a %s reason needs a reason_code from allowed_reason_codes, got %q", who, verdict, code)
 		}
 	default:
-		c.add(reasonsRel, "%s: verdict must be ALLOW or REJECT, got %q", who, verdict)
+		c.add(reasonsRel, "%s: verdict must be one of the seven results, or ALLOW or REJECT, got %q", who, verdict)
 	}
 }
 
@@ -407,6 +417,8 @@ func (c *checker) walkReasons(file, owner, label string, mod *ast.Module, regist
 				reported[lit] = true
 				c.add(file, "reason_code %q is not one of the allowed CIP-POL codes", lit)
 			}
+		case results[lit]:
+			// a result, not a reason
 		case reasonRe.MatchString(lit):
 			reported[lit] = true
 			switch {

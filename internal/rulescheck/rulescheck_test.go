@@ -261,3 +261,72 @@ func TestEachKindOfTemplateDefectIsCaught(t *testing.T) {
 		})
 	}
 }
+
+// The registry and the gate follow the seven results of the PDE architecture document
+// (section 8): a reason may carry any of them, and a v2 ruleset names them as strings.
+func TestTheSevenResultsAreAcceptedAndMisuseIsCaught(t *testing.T) {
+	add := func(verdict, code string) func(t *testing.T, r string) {
+		return func(t *testing.T, r string) {
+			editReasons(t, r, func(m map[string]any) {
+				m["reasons"] = append(m["reasons"].([]any), map[string]any{
+					"profile": "BRIDGE-UPI", "reason": "NEW_REASON", "verdict": verdict, "reason_code": code,
+				})
+			})
+		}
+	}
+	// Each of these registers a reason no rule produces, so the only other problem is "never produced".
+	onlyStale := func(t *testing.T, got []string) {
+		t.Helper()
+		for _, g := range got {
+			if !strings.Contains(g, "never produced") {
+				t.Fatalf("unexpected problem: %s", g)
+			}
+		}
+	}
+	for _, v := range []string{"STEP_UP", "NEED_EVIDENCE", "REFER", "DEFER_UNAVAILABLE", "INDETERMINATE", "DENY"} {
+		t.Run(v+" with a class is accepted", func(t *testing.T) {
+			root := scratch(t)
+			add(v, "CIP-POL-TRUST")(t, root)
+			onlyStale(t, problems(t, root))
+		})
+		t.Run(v+" without a class is caught", func(t *testing.T) {
+			root := scratch(t)
+			add(v, "")(t, root)
+			requireProblem(t, problems(t, root), "NEW_REASON", "reason_code")
+		})
+	}
+	t.Run("PERMIT with a class is caught", func(t *testing.T) {
+		root := scratch(t)
+		add("PERMIT", "CIP-POL-LIMIT")(t, root)
+		requireProblem(t, problems(t, root), "NEW_REASON", "reason_code")
+	})
+	t.Run("PERMIT without a class is accepted", func(t *testing.T) {
+		root := scratch(t)
+		add("PERMIT", "")(t, root)
+		onlyStale(t, problems(t, root))
+	})
+	t.Run("an unknown verdict is caught", func(t *testing.T) {
+		root := scratch(t)
+		add("MAYBE", "")(t, root)
+		requireProblem(t, problems(t, root), "NEW_REASON", "verdict")
+	})
+}
+
+func TestAV2RulesetNamingAResultIsNotMistakenForAReason(t *testing.T) {
+	root := scratch(t)
+	edit(t, root, aepsPolicy, func(s string) string {
+		return s + "\nstep_up_probe := {\"result\": \"STEP_UP\", \"reason\": \"DAILY_CEILING_EXCEEDED\"} if false\n"
+	})
+
+	require.Empty(t, problems(t, root), "STEP_UP is a result, not an unregistered reason")
+}
+
+func TestTheReasonsOfAnIndeterminateResultBelongToThePDS(t *testing.T) {
+	for _, reserved := range []string{"RULE_OUTPUT_INVALID", "RULE_CONFLICT"} {
+		t.Run(reserved, func(t *testing.T) {
+			root := scratch(t)
+			edit(t, root, aepsPolicy, replaceAll(`"DAILY_CEILING_EXCEEDED"`, `"`+reserved+`"`))
+			requireProblem(t, problems(t, root), reserved, "reserved")
+		})
+	}
+}

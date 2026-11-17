@@ -103,7 +103,9 @@
   ],
   "reserved_for_pds": [
     "POLICY_REF_MISMATCH",
-    "RULE_UNDEFINED"
+    "RULE_UNDEFINED",
+    "RULE_OUTPUT_INVALID",
+    "RULE_CONFLICT"
   ],
   "allowed_reason_codes": [
     "CIP-POL-DENY",
