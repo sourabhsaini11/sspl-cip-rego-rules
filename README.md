@@ -74,3 +74,19 @@ gate compiles with the same OPA as the PDS, so a rule that passes here compiles 
 Owners and details are in the PDS's `docs/bundle-publishing.md`: the KMI bundle key, the canonical bytes the
 MAC covers (DEP-05), where revision numbers come from, how the signed bundle reaches every PDS instance, and
 which tool signs in the pipeline. This repository's GitLab pipeline is to be added by cloud devops.
+
+## Templates and bindings (the second rule source)
+
+Besides the hand-written rulesets (P0), the bundle can carry reviewed **templates** (P1), one per catalogue
+rule type, in `templates/<rule_type>/` (`rule.rego`, `rule_test.rego`, `template.json`). A template holds no
+limit: it reads the number from `input.values[input.rule.value_key]`. On a profile publish, `cmd/rules-gen`
+writes **bindings** (which template applies to which operation, and the key to read) and assembles an
+unsigned bundle directory for the signing step. The PDS combines both sources with deny wins. Design and
+decisions: `../sspl-cip-policy-decision-service/docs/rego-rule-sources.md`.
+
+```bash
+go run ./cmd/rules-gen -catalogue catalogue.json -profile profile.json -out /path/to/unsigned
+```
+
+`make check` also covers the templates and the template reasons in `contract/reasons.json`
+(`template_reasons`, registered per rule type).
