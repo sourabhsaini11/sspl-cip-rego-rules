@@ -151,6 +151,70 @@
         "night_cap_inr": 1000,
         "step_up_threshold_inr": 3000
       }
+    },
+    {
+      "name": "guarded, over the posture cap",
+      "posture": "GUARDED",
+      "facts": {
+        "amount_inr": 12000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 20000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 20000,
+        "step_up_threshold_inr": 3000,
+        "guarded_cap_inr": 8000
+      }
+    },
+    {
+      "name": "guarded, at the posture cap",
+      "posture": "GUARDED",
+      "facts": {
+        "amount_inr": 8000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 20000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 20000,
+        "step_up_threshold_inr": 3000,
+        "guarded_cap_inr": 8000
+      }
+    },
+    {
+      "name": "guarded, under the posture cap",
+      "posture": "GUARDED",
+      "facts": {
+        "amount_inr": 500,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 20000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 20000,
+        "step_up_threshold_inr": 3000,
+        "guarded_cap_inr": 8000
+      }
+    },
+    {
+      "name": "guarded, cap above the bank limit",
+      "posture": "GUARDED",
+      "facts": {
+        "amount_inr": 25000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "values": {
+        "per_txn_limit_inr": 20000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 20000,
+        "step_up_threshold_inr": 3000,
+        "guarded_cap_inr": 30000
+      }
     }
   ],
   "allowed_widening": []

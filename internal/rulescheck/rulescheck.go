@@ -112,7 +112,7 @@ type litEntry struct {
 }
 
 // literalKinds are what a registered literal may be.
-var literalKinds = map[string]bool{"OPERATION": true, "OBLIGATION": true}
+var literalKinds = map[string]bool{"OPERATION": true, "OBLIGATION": true, "POSTURE": true}
 
 type regEntry struct {
 	Profile    string `json:"profile"`
@@ -210,7 +210,7 @@ func (c *checker) loadRegistry() {
 		case !reasonRe.MatchString(e.Literal):
 			c.add(reasonsRel, "%s: literal must be UPPER_SNAKE_CASE", who)
 		case !literalKinds[e.Kind]:
-			c.add(reasonsRel, "%s: kind must be OPERATION or OBLIGATION, got %q", who, e.Kind)
+			c.add(reasonsRel, "%s: kind must be OPERATION, OBLIGATION or POSTURE, got %q", who, e.Kind)
 		case c.reserved[e.Literal] || results[e.Literal]:
 			c.add(reasonsRel, "%s: a reserved reason or a result cannot be a literal", who)
 		}

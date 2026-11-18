@@ -120,6 +120,7 @@ Catalogue owners** (the bank's values arrive in the signed state under these key
 | Journey | Ruleset | Operations | Results it can give | Values the bank's state must publish |
 |---|---|---|---|---|
 | 1 UPI step-up (UPI-R19) | `BRIDGE-UPI v6` | `UPI_PAY` | PERMIT, STEP_UP (`UPI_DEVICE_RISK`, obligation `OTP_OR_APPROVED_FACTOR`), DENY | `per_txn_limit_inr`, `daily_limit_inr`, `night_cap_inr`, `step_up_threshold_inr` |
+| 1b UPI under a GUARDED posture (section 3 scenario) | `BRIDGE-UPI v7` | `UPI_PAY` | v6 results, plus DENY (`UPI_GUARDED_LIMIT_EXCEEDED`, `details.effective_limit_inr`) above the posture cap | the v6 keys, plus `guarded_cap_inr` (needed only while the posture is GUARDED). A posture other than NORMAL or GUARDED, such as the RESTRICTED the PDS reports for a missing or expired posture, leaves the decision undefined |
 | 2 Mobile device enrolment | `BRIDGE-MOBILE-BANKING v1` | `DEVICE_ENROL`, `BALANCE_ENQUIRY` | PERMIT, STEP_UP, DENY (`BANK_SCOPE_MISMATCH`) | none |
 | 3 New beneficiary cooling period | `BRIDGE-INTERNET-BANKING v1` | `ADD_BENEFICIARY`, `TRANSFER_TO_BENEFICIARY` | PERMIT, DENY (`WAIT_COOLING_PERIOD`), STEP_UP | `cooling_period_minutes` |
 | 4 Teller cash withdrawal | `BRIDGE-BRANCH-BANKING v1` | `CASH_WITHDRAWAL` | PERMIT, REFER (`BRANCH_LIMIT_01`, `REQUIRE_DUAL_CONTROL`), DENY (`SEGREGATION_OF_DUTIES`) | `branch_delegation_limit_inr` |
@@ -137,7 +138,7 @@ missing value can never let a request through. The PDS repository runs every jou
 ## Strings that are not reasons
 
 The gate reads every UPPER_SNAKE string in a policy as a reason, so an operation code or an obligation reference must be
-registered in `contract/reasons.json` under `literals` (`kind`: `OPERATION` or `OBLIGATION`). A fact's enum values
+registered in `contract/reasons.json` under `literals` (`kind`: `OPERATION`, `OBLIGATION` or `POSTURE`, an L4 operating posture a rule switches on). A fact's enum values
 need no registration: they come from the ruleset's `fact-schema.json`. A registered literal nothing uses, one that is also
 a reason, or one for a profile not in the manifest, fails the gate.
 

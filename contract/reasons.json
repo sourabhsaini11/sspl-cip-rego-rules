@@ -241,6 +241,12 @@
       "reason": "BILLER_ELIGIBLE",
       "verdict": "PERMIT",
       "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "reason": "UPI_GUARDED_LIMIT_EXCEEDED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-LIMIT"
     }
   ],
   "literals": [
@@ -318,6 +324,16 @@
       "profile": "BRIDGE-BBPS",
       "literal": "BILL_PAYMENT",
       "kind": "OPERATION"
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "literal": "NORMAL",
+      "kind": "POSTURE"
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "literal": "GUARDED",
+      "kind": "POSTURE"
     }
   ],
   "template_reasons": [

@@ -128,3 +128,42 @@ func TestTheCheckedInVersionsNeverWidenWithoutReview(t *testing.T) {
 	require.NotEmpty(t, rep.Pairs, "BRIDGE-UPI and BRIDGE-AEPS each have two versions")
 	require.Truef(t, rep.OK(), "%s", rep.Markdown())
 }
+
+// A version that narrows only under a posture is invisible to a corpus that always runs NORMAL.
+const narrowerWhenGuarded = `decision := {"result": "PERMIT", "reason": "OK"} if {
+	input.posture.operating == "GUARDED"
+	input.facts.amount < input.values.limit
+}
+
+decision := {"result": "DENY", "reason": "OVER"} if {
+	input.posture.operating == "GUARDED"
+	input.facts.amount >= input.values.limit
+}
+
+decision := {"result": "PERMIT", "reason": "OK"} if {
+	input.posture.operating != "GUARDED"
+	input.facts.amount <= input.values.limit
+}
+
+decision := {"result": "DENY", "reason": "OVER"} if {
+	input.posture.operating != "GUARDED"
+	input.facts.amount > input.values.limit
+}
+`
+
+func TestACaseCanRunUnderAPostureAndSeeWhatOnlyThatPostureChanges(t *testing.T) {
+	root := compatRoot(t, narrowerWhenGuarded)
+	p := filepath.Join(root, "conformance", "compat", "bridge_demo.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+	require.NoError(t, os.WriteFile(p, []byte(`{"profile":"BRIDGE-DEMO","operation":"PAY","cases":[
+ {"name":"at the limit, normal","facts":{"amount":5},"values":{"limit":5}},
+ {"name":"at the limit, guarded","posture":"GUARDED","facts":{"amount":5},"values":{"limit":5}}]}`), 0o600))
+
+	rep, err := conformance.CompareRepo(context.Background(), root)
+
+	require.NoError(t, err)
+	require.True(t, rep.OK(), rep.Markdown())
+	require.Equal(t, 1, rep.Pairs[0].Same, "normal posture: unchanged")
+	require.Equal(t, 1, rep.Pairs[0].Narrowed, "guarded posture: the newer version is stricter")
+	require.Contains(t, rep.Markdown(), "at the limit, guarded")
+}

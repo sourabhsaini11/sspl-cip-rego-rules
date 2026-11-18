@@ -63,6 +63,12 @@
       "version": "v1",
       "package": "cip.pde.bridge_bbps.v1",
       "path": "bridge_bbps/v1"
+    },
+    {
+      "profile": "BRIDGE-UPI",
+      "version": "v7",
+      "package": "cip.pde.bridge_upi.v7",
+      "path": "bridge_upi/v7"
     }
   ]
 }

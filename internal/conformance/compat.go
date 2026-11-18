@@ -32,11 +32,13 @@ type Widening struct {
 }
 
 type corpusCase struct {
-	Name   string         `json:"name"`
-	Now    string         `json:"now"`
-	Facts  map[string]any `json:"facts"`
-	Values map[string]any `json:"values"`
-	Live   map[string]any `json:"live"`
+	Name string `json:"name"`
+	Now  string `json:"now"`
+	// Posture is the L4 operating posture the case runs under; empty means NORMAL.
+	Posture string         `json:"posture"`
+	Facts   map[string]any `json:"facts"`
+	Values  map[string]any `json:"values"`
+	Live    map[string]any `json:"live"`
 }
 
 type corpusFile struct {
@@ -223,11 +225,15 @@ func evaluate(ctx context.Context, root, path, pkg, profile, operation string, c
 	for k, v := range cs.Live {
 		live[k] = v
 	}
+	posture := cs.Posture
+	if posture == "" {
+		posture = "NORMAL"
+	}
 	input := map[string]any{
 		"ctx":     map[string]any{"bank_id": "KGB001", "profile": profile, "operation": operation, "now": now, "tz": "Asia/Kolkata"},
 		"facts":   cs.Facts,
 		"values":  cs.Values,
-		"posture": map[string]any{"operating": "NORMAL", "valid": true},
+		"posture": map[string]any{"operating": posture, "valid": true},
 		"live":    live, "customer": "cust", "contract": "v1",
 	}
 	rs, err := rego.New(rego.Module("policy.rego", string(src)), rego.Query("data."+pkg+".decision"), rego.Input(input)).Eval(ctx)

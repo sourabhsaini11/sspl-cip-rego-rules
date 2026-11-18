@@ -66,7 +66,7 @@ func TestAPublishedProfileBecomesBindingsOnEveryVersionOfItsRuleset(t *testing.T
 	rep, err := generate(in)
 
 	require.NoError(t, err)
-	require.Equal(t, 2, rep.Bound, "one rule on each of v5 and v6")
+	require.Equal(t, 3, rep.Bound, "one rule on each of v5, v6 and v7")
 	b := readJSON(t, filepath.Join(in.out, "bindings/bridge_upi/v5.json"))
 	require.Equal(t, map[string]any{"rules": []any{map[string]any{
 		"rule_id": "R-UPI-TXN-MAX", "rule_type": "AMOUNT_PER_TXN",
@@ -77,6 +77,7 @@ func TestAPublishedProfileBecomesBindingsOnEveryVersionOfItsRuleset(t *testing.T
 	require.Equal(t, []any{
 		map[string]any{"profile": "BRIDGE-UPI", "version": "v5", "path": "bindings/bridge_upi/v5.json"},
 		map[string]any{"profile": "BRIDGE-UPI", "version": "v6", "path": "bindings/bridge_upi/v6.json"},
+		map[string]any{"profile": "BRIDGE-UPI", "version": "v7", "path": "bindings/bridge_upi/v7.json"},
 	}, m["bindings"])
 	tpls := m["templates"].([]any)
 	require.Len(t, tpls, 3, "every template in the repository ships")
@@ -129,7 +130,7 @@ func TestRuleTypesWithoutATemplateAreSkippedAndReported(t *testing.T) {
 	in := setup(t, catalogue, upiProfile("R-UPI-TXN-MAX", "R-UPI-QUOTA", "R-UPI-ALL-WRITES"))
 	rep, err := generate(in)
 	require.NoError(t, err)
-	require.Equal(t, 2, rep.Bound)
+	require.Equal(t, 3, rep.Bound)
 	require.ElementsMatch(t, []rulesgen.Skip{
 		{RuleID: "R-UPI-QUOTA", Why: "no template for rule type QUOTA"},
 		{RuleID: "R-UPI-ALL-WRITES", Why: `applies to an operation class, not an operation ("op_class: WRITE")`},
