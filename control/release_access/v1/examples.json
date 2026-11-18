@@ -1,0 +1,147 @@
+[
+  {
+    "name": "the author submits a draft",
+    "input": {
+      "ctx": {
+        "now": "2026-10-15T11:30:00+05:30",
+        "tz": "Asia/Kolkata"
+      },
+      "actor": {
+        "id": "ENG-022",
+        "role": "POLICY_AUTHOR"
+      },
+      "action": "SUBMIT",
+      "change": {
+        "id": "CHG-POL-KGB001-UPI-v6",
+        "kind": "POLICY",
+        "author_id": "ENG-022",
+        "approvals": [
+          {
+            "actor_id": "ENG-031",
+            "role": "POLICY_CHECKER"
+          }
+        ],
+        "gates": {
+          "release_approver": true,
+          "phoenix": true,
+          "conformance_testpack": "TESTPACK-UPI-v6-PASS"
+        }
+      },
+      "permissions": [
+        {
+          "role": "POLICY_AUTHOR",
+          "action": "SUBMIT",
+          "kind": "POLICY"
+        },
+        {
+          "role": "POLICY_CHECKER",
+          "action": "APPROVE",
+          "kind": "POLICY"
+        },
+        {
+          "role": "RELEASE_CONTROLLER",
+          "action": "ACTIVATE",
+          "kind": "POLICY"
+        }
+      ]
+    }
+  },
+  {
+    "name": "the same actor approving their own change is denied",
+    "input": {
+      "ctx": {
+        "now": "2026-10-15T11:30:00+05:30",
+        "tz": "Asia/Kolkata"
+      },
+      "actor": {
+        "id": "ENG-022",
+        "role": "POLICY_CHECKER"
+      },
+      "action": "APPROVE",
+      "change": {
+        "id": "CHG-POL-KGB001-UPI-v6",
+        "kind": "POLICY",
+        "author_id": "ENG-022",
+        "approvals": [
+          {
+            "actor_id": "ENG-031",
+            "role": "POLICY_CHECKER"
+          }
+        ],
+        "gates": {
+          "release_approver": true,
+          "phoenix": true,
+          "conformance_testpack": "TESTPACK-UPI-v6-PASS"
+        }
+      },
+      "permissions": [
+        {
+          "role": "POLICY_AUTHOR",
+          "action": "SUBMIT",
+          "kind": "POLICY"
+        },
+        {
+          "role": "POLICY_CHECKER",
+          "action": "APPROVE",
+          "kind": "POLICY"
+        },
+        {
+          "role": "RELEASE_CONTROLLER",
+          "action": "ACTIVATE",
+          "kind": "POLICY"
+        }
+      ]
+    }
+  },
+  {
+    "name": "a tested, signed bundle with every gate is activated",
+    "input": {
+      "ctx": {
+        "now": "2026-10-15T11:30:00+05:30",
+        "tz": "Asia/Kolkata"
+      },
+      "actor": {
+        "id": "DEP-1",
+        "role": "RELEASE_CONTROLLER"
+      },
+      "action": "ACTIVATE",
+      "change": {
+        "id": "CHG-POL-KGB001-UPI-v6",
+        "kind": "POLICY",
+        "author_id": "ENG-022",
+        "approvals": [
+          {
+            "actor_id": "ENG-031",
+            "role": "POLICY_CHECKER"
+          }
+        ],
+        "gates": {
+          "release_approver": true,
+          "phoenix": true,
+          "conformance_testpack": "TESTPACK-UPI-v6-PASS"
+        }
+      },
+      "permissions": [
+        {
+          "role": "POLICY_AUTHOR",
+          "action": "SUBMIT",
+          "kind": "POLICY"
+        },
+        {
+          "role": "POLICY_CHECKER",
+          "action": "APPROVE",
+          "kind": "POLICY"
+        },
+        {
+          "role": "RELEASE_CONTROLLER",
+          "action": "ACTIVATE",
+          "kind": "POLICY"
+        }
+      ]
+    }
+  },
+  {
+    "name": "an empty input is a deny",
+    "input": {}
+  }
+]

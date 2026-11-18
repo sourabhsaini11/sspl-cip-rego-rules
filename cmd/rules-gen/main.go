@@ -2,7 +2,7 @@
 // directory: the rulesets, the templates, the bindings and a manifest template that lists
 // them. The signing step takes that directory as its source.
 //
-//	rules-gen -catalogue catalogue.json -profile profile.json [-profile ...] -out DIR
+//	rules-gen -catalogue catalogue.json -profile profile.json [-profile ...] -out DIR [-policy-data DIR]
 //	rules-gen -proposals DIR -git-commit SHA
 //
 // The second form writes one policy proposal per ruleset version, for the Landing Zone's Policy
@@ -30,6 +30,7 @@ func main() {
 	root := flag.String("root", ".", "repository root (holds rulesets/ and templates/)")
 	catalogue := flag.String("catalogue", "", "catalogue export (JSON)")
 	out := flag.String("out", "", "directory to create for the unsigned bundle")
+	policyData := flag.String("policy-data", "", "directory to create for the bindings as a separate policy-data artefact; the bundle then carries none (PDE architecture document, section 13)")
 	flag.Var(&profiles, "profile", "published-profile file (JSON); repeatable")
 	proposals := flag.String("proposals", "", "directory to create for the policy proposals (one file per ruleset version)")
 	gitCommit := flag.String("git-commit", "", "the 40-hex commit the proposals describe")
@@ -46,7 +47,7 @@ func main() {
 		}
 	}
 
-	rep, err := rulesgen.Generate(rulesgen.Options{Root: *root, Catalogue: *catalogue, Profiles: profiles, Out: *out})
+	rep, err := rulesgen.Generate(rulesgen.Options{Root: *root, Catalogue: *catalogue, Profiles: profiles, Out: *out, PolicyDataOut: *policyData})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -55,4 +56,7 @@ func main() {
 		fmt.Printf("skipped %s: %s\n", s.RuleID, s.Why)
 	}
 	fmt.Printf("rules-gen: %d rule(s) bound; unsigned bundle in %s\n", rep.Bound, *out)
+	if *policyData != "" {
+		fmt.Printf("rules-gen: policy data (the bindings) in %s: sign and release it separately from the bundle\n", *policyData)
+	}
 }

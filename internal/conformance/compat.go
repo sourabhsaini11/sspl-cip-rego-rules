@@ -35,10 +35,14 @@ type corpusCase struct {
 	Name string `json:"name"`
 	Now  string `json:"now"`
 	// Posture is the L4 operating posture the case runs under; empty means NORMAL.
-	Posture string         `json:"posture"`
-	Facts   map[string]any `json:"facts"`
-	Values  map[string]any `json:"values"`
-	Live    map[string]any `json:"live"`
+	Posture string `json:"posture"`
+	// PostureLimitINR is the cap the posture source reports with it; zero means none.
+	PostureLimitINR int64 `json:"posture_limit_inr"`
+	// Completions are the verified obligation completions the PDS would give the rules (ctx.completions); none by default.
+	Completions []map[string]any `json:"completions"`
+	Facts       map[string]any   `json:"facts"`
+	Values      map[string]any   `json:"values"`
+	Live        map[string]any   `json:"live"`
 }
 
 type corpusFile struct {
@@ -229,11 +233,19 @@ func evaluate(ctx context.Context, root, path, pkg, profile, operation string, c
 	if posture == "" {
 		posture = "NORMAL"
 	}
+	completions := []any{}
+	for _, c := range cs.Completions {
+		completions = append(completions, c)
+	}
+	postureIn := map[string]any{"operating": posture, "valid": true}
+	if cs.PostureLimitINR > 0 {
+		postureIn["limit_inr"] = cs.PostureLimitINR
+	}
 	input := map[string]any{
-		"ctx":     map[string]any{"bank_id": "KGB001", "profile": profile, "operation": operation, "now": now, "tz": "Asia/Kolkata"},
+		"ctx":     map[string]any{"bank_id": "KGB001", "profile": profile, "operation": operation, "now": now, "tz": "Asia/Kolkata", "completions": completions},
 		"facts":   cs.Facts,
 		"values":  cs.Values,
-		"posture": map[string]any{"operating": posture, "valid": true},
+		"posture": postureIn,
 		"live":    live, "customer": "cust", "contract": "v1",
 	}
 	rs, err := rego.New(rego.Module("policy.rego", string(src)), rego.Query("data."+pkg+".decision"), rego.Input(input)).Eval(ctx)

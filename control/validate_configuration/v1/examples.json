@@ -1,0 +1,86 @@
+[
+  {
+    "name": "the document's 20,000 limit is valid",
+    "input": {
+      "ctx": {
+        "now": "2026-10-15T11:30:00+05:30",
+        "tz": "Asia/Kolkata",
+        "bank_id": "KGB001",
+        "bundle_revision": "2026.11.18-1",
+        "maker": {
+          "id": "MKR-1",
+          "role": "PRODUCT_OFFICER",
+          "bank_id": "KGB001"
+        }
+      },
+      "schema": {
+        "ref": "BRIDGE-UPI@1.2",
+        "fields": {
+          "per_txn_limit_inr": {
+            "override": "BANK_NARROW_ONLY",
+            "type": "int"
+          }
+        }
+      },
+      "levels": {
+        "L1": {
+          "per_txn_limit_inr": 100000
+        },
+        "L2": {
+          "per_txn_limit_inr": 50000
+        },
+        "L3": {
+          "bank_id": "KGB001",
+          "config_ref": "CFG-KGB001-UPI-v4",
+          "values": {
+            "per_txn_limit_inr": 20000
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "the document's 60,000 limit violates L2",
+    "input": {
+      "ctx": {
+        "now": "2026-10-15T11:30:00+05:30",
+        "tz": "Asia/Kolkata",
+        "bank_id": "KGB001",
+        "bundle_revision": "2026.11.18-1",
+        "maker": {
+          "id": "MKR-1",
+          "role": "PRODUCT_OFFICER",
+          "bank_id": "KGB001"
+        }
+      },
+      "schema": {
+        "ref": "BRIDGE-UPI@1.2",
+        "fields": {
+          "per_txn_limit_inr": {
+            "override": "BANK_NARROW_ONLY",
+            "type": "int"
+          }
+        }
+      },
+      "levels": {
+        "L1": {
+          "per_txn_limit_inr": 100000
+        },
+        "L2": {
+          "per_txn_limit_inr": 50000
+        },
+        "L3": {
+          "bank_id": "KGB001",
+          "config_ref": "CFG-KGB001-UPI-v4",
+          "values": {
+            "per_txn_limit_inr": 60000
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "an empty input is invalid, never valid by default",
+    "input": {}
+  }
+]

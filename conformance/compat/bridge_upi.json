@@ -164,9 +164,9 @@
         "per_txn_limit_inr": 20000,
         "daily_limit_inr": 50000,
         "night_cap_inr": 20000,
-        "step_up_threshold_inr": 3000,
-        "guarded_cap_inr": 8000
-      }
+        "step_up_threshold_inr": 3000
+      },
+      "posture_limit_inr": 8000
     },
     {
       "name": "guarded, at the posture cap",
@@ -180,9 +180,9 @@
         "per_txn_limit_inr": 20000,
         "daily_limit_inr": 50000,
         "night_cap_inr": 20000,
-        "step_up_threshold_inr": 3000,
-        "guarded_cap_inr": 8000
-      }
+        "step_up_threshold_inr": 3000
+      },
+      "posture_limit_inr": 8000
     },
     {
       "name": "guarded, under the posture cap",
@@ -196,9 +196,9 @@
         "per_txn_limit_inr": 20000,
         "daily_limit_inr": 50000,
         "night_cap_inr": 20000,
-        "step_up_threshold_inr": 3000,
-        "guarded_cap_inr": 8000
-      }
+        "step_up_threshold_inr": 3000
+      },
+      "posture_limit_inr": 8000
     },
     {
       "name": "guarded, cap above the bank limit",
@@ -212,10 +212,59 @@
         "per_txn_limit_inr": 20000,
         "daily_limit_inr": 50000,
         "night_cap_inr": 20000,
-        "step_up_threshold_inr": 3000,
-        "guarded_cap_inr": 30000
-      }
+        "step_up_threshold_inr": 3000
+      },
+      "posture_limit_inr": 30000
+    },
+    {
+      "name": "day, unverified device above the step-up threshold, second factor completed",
+      "facts": {
+        "amount_inr": 5000,
+        "payee_vpa": "shop@bank",
+        "device_verified": false
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      },
+      "completions": [
+        {
+          "obligation_ref": "OTP_OR_APPROVED_FACTOR",
+          "completed_by": "approver-digest",
+          "completed_at": "2026-10-15T14:29:00+05:30"
+        }
+      ]
+    },
+    {
+      "name": "day, a limit breach with a completed second factor",
+      "facts": {
+        "amount_inr": 10001,
+        "payee_vpa": "shop@bank",
+        "device_verified": false
+      },
+      "values": {
+        "per_txn_limit_inr": 10000,
+        "daily_limit_inr": 50000,
+        "night_cap_inr": 1000,
+        "step_up_threshold_inr": 3000
+      },
+      "completions": [
+        {
+          "obligation_ref": "OTP_OR_APPROVED_FACTOR",
+          "completed_by": "approver-digest",
+          "completed_at": "2026-10-15T14:29:00+05:30"
+        }
+      ]
     }
   ],
-  "allowed_widening": []
+  "allowed_widening": [
+    {
+      "from": "v6",
+      "to": "v7",
+      "case": "day, unverified device above the step-up threshold, second factor completed",
+      "reason": "A verified completion of OTP_OR_APPROVED_FACTOR satisfies the device step-up (document sections 8 and 17); v6 could only step up again. The PDS gives the rules only completions it has verified."
+    }
+  ]
 }

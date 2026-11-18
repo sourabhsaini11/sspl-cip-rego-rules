@@ -60,9 +60,49 @@ type manifestRulesets struct {
 
 // MutateRepo runs the mutation test over every ruleset in the manifest template under root.
 func MutateRepo(ctx context.Context, root string) (Report, error) {
+	return MutateRepoOnly(ctx, root, "")
+}
+
+// MutateRepoOnly is MutateRepo for one ruleset, named as the report names it ("BRIDGE-UPI v7", or "CONTROL validate_configuration v1"). An empty
+// name runs them all. With a name, the reviewed equivalents of the other rulesets are not judged, so they cannot look stale; an unknown name is
+// an error rather than an empty pass.
+func MutateRepoOnly(ctx context.Context, root, only string) (Report, error) {
 	var m manifestRulesets
 	if err := readJSON(filepath.Join(root, "rulesets", "manifest.template.json"), &m, false); err != nil {
 		return Report{}, err
+	}
+	// The control-plane family (control/manifest.template.json) is mutation-tested like the runtime rules.
+	var cm struct {
+		Rulesets []struct {
+			Name    string `json:"name"`
+			Version string `json:"version"`
+			Path    string `json:"path"`
+		} `json:"rulesets"`
+	}
+	if _, err := os.Stat(filepath.Join(root, "control", "manifest.template.json")); err == nil {
+		if err := readJSON(filepath.Join(root, "control", "manifest.template.json"), &cm, false); err != nil {
+			return Report{}, err
+		}
+	}
+	type target struct{ name, dir string }
+	var targets []target
+	for _, e := range m.Rulesets {
+		targets = append(targets, target{e.Profile + " " + e.Version, filepath.Join(root, "rulesets", filepath.FromSlash(e.Path))})
+	}
+	for _, e := range cm.Rulesets {
+		targets = append(targets, target{"CONTROL " + e.Name + " " + e.Version, filepath.Join(root, "control", filepath.FromSlash(e.Path))})
+	}
+	if only != "" {
+		kept := targets[:0:0]
+		for _, tg := range targets {
+			if tg.name == only {
+				kept = append(kept, tg)
+			}
+		}
+		if len(kept) == 0 {
+			return Report{}, fmt.Errorf("conformance: no ruleset named %q", only)
+		}
+		targets = kept
 	}
 	var accepted []Accepted
 	if _, err := os.Stat(filepath.Join(root, AcceptedFile)); err == nil {
@@ -73,11 +113,20 @@ func MutateRepo(ctx context.Context, root string) (Report, error) {
 			return Report{}, err
 		}
 		accepted = f.Accepted
+		if only != "" {
+			own := accepted[:0:0]
+			for _, a := range accepted {
+				if a.Ruleset == only {
+					own = append(own, a)
+				}
+			}
+			accepted = own
+		}
 	}
 	used := make([]bool, len(accepted))
 	var rep Report
-	for _, e := range m.Rulesets {
-		dir := filepath.Join(root, "rulesets", filepath.FromSlash(e.Path))
+	for _, tg := range targets {
+		dir := tg.dir
 		pol, err := os.ReadFile(filepath.Join(dir, "policy.rego"))
 		if err != nil {
 			return Report{}, err
@@ -86,7 +135,7 @@ func MutateRepo(ctx context.Context, root string) (Report, error) {
 		if err != nil {
 			return Report{}, err
 		}
-		name := e.Profile + " " + e.Version
+		name := tg.name
 		res, err := Run(ctx, string(pol), string(tst))
 		if err != nil {
 			return Report{}, fmt.Errorf("%s: %w", name, err)

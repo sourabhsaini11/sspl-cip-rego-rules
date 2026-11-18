@@ -8,8 +8,8 @@ import data.cip.pde.bridge_upi.v7 as upi
 base := {
 	"ctx": {"bank_id": "KGB001", "profile": "BRIDGE-UPI", "operation": "UPI_PAY", "now": "2026-10-15T14:30:00+05:30", "tz": "Asia/Kolkata"},
 	"facts": {"amount_inr": 12000, "payee_vpa": "shop@bank", "device_verified": true},
-	"values": {"per_txn_limit_inr": 20000, "daily_limit_inr": 50000, "night_cap_inr": 20000, "step_up_threshold_inr": 3000, "guarded_cap_inr": 8000},
-	"posture": {"operating": "GUARDED", "valid": true},
+	"values": {"per_txn_limit_inr": 20000, "daily_limit_inr": 50000, "night_cap_inr": 20000, "step_up_threshold_inr": 3000},
+	"posture": {"operating": "GUARDED", "valid": true, "limit_inr": 8000},
 	"live": {"daily_drawn_inr": 0, "found": true},
 	"customer": "cust-abc",
 	"contract": "v1",
@@ -49,7 +49,7 @@ test_normal_posture_permits_the_same_payment if {
 
 test_a_cap_above_the_bank_limit_does_not_loosen_it if {
 	# The posture may only narrow (FF-14): 30,000 guarded cap, 20,000 per-transaction limit.
-	v := object.union(base, {"values": {"guarded_cap_inr": 30000}, "facts": {"amount_inr": 25000}})
+	v := object.union(base, {"posture": {"limit_inr": 30000}, "facts": {"amount_inr": 25000}})
 	d := upi.decision with input as v
 	d.result == "DENY"
 	d.reason == "PER_TXN_LIMIT_EXCEEDED"
@@ -61,17 +61,17 @@ test_a_limit_breach_wins_over_the_guarded_cap if {
 }
 
 test_guarded_posture_without_a_cap_is_undefined if {
-	v := json.remove(base, ["values/guarded_cap_inr"])
+	v := json.remove(base, ["posture/limit_inr"])
 	not upi.decision with input as v
 }
 
 test_guarded_posture_with_a_malformed_cap_is_undefined if {
-	v := object.union(base, {"values": {"guarded_cap_inr": "8000"}})
+	v := object.union(base, {"posture": {"limit_inr": "8000"}})
 	not upi.decision with input as v
 }
 
 test_normal_posture_does_not_need_a_cap if {
-	v := json.remove(normal, ["values/guarded_cap_inr"])
+	v := json.remove(normal, ["posture/limit_inr"])
 	d := upi.decision with input as v
 	d.result == "PERMIT"
 }
@@ -161,4 +161,78 @@ test_the_step_up_threshold_is_exclusive if {
 test_the_guarded_cap_is_inclusive_under_a_step_up_too if {
 	at_cap := object.union(base, {"facts": {"amount_inr": 8000, "device_verified": false}})
 	upi.decision.result == "STEP_UP" with input as at_cap
+}
+
+test_guarded_cap_is_read_from_the_posture if {
+	v := object.union(amount(6000), {"posture": {"limit_inr": 5000}})
+	d := upi.decision with input as v
+	d.reason == "UPI_GUARDED_LIMIT_EXCEEDED"
+	d.details.effective_limit_inr == 5000
+}
+
+test_a_cap_in_the_bank_values_is_ignored if {
+	v := object.union(amount(5000), {"values": {"guarded_cap_inr": 1000}})
+	upi.decision.result == "PERMIT" with input as v
+}
+
+test_the_denial_reports_the_requested_amount if {
+	d := upi.decision with input as base
+	d.details.requested_amount_inr == 12000
+}
+
+# A verified completion of OTP_OR_APPROVED_FACTOR satisfies the step-up (document sections 8 and 17). The PDS
+# only passes completions it has verified (docs/rules-contract.md, section 4.4).
+completed(ref) := {"obligation_ref": ref, "completed_by": "approver-digest", "completed_at": "2026-10-15T14:29:00+05:30"}
+
+unverified_step_up := object.union(normal, {"facts": {"amount_inr": 5000, "device_verified": false}})
+
+with_completions(v, cs) := object.union(v, {"ctx": {"completions": cs}})
+
+test_a_verified_completion_permits_the_step_up_payment if {
+	v := with_completions(unverified_step_up, [completed("OTP_OR_APPROVED_FACTOR")])
+	d := upi.decision with input as v
+	d.result == "PERMIT"
+	d.reason == "WITHIN_LIMITS"
+}
+
+test_without_a_completion_the_payment_steps_up if {
+	d := upi.decision with input as unverified_step_up
+	d.result == "STEP_UP"
+}
+
+test_a_completion_of_another_obligation_does_not_satisfy_the_step_up if {
+	v := with_completions(unverified_step_up, [completed("REQUIRE_DUAL_CONTROL")])
+	d := upi.decision with input as v
+	d.result == "STEP_UP"
+}
+
+test_an_empty_completion_list_steps_up if {
+	v := with_completions(unverified_step_up, [])
+	d := upi.decision with input as v
+	d.result == "STEP_UP"
+}
+
+test_a_missing_completion_list_steps_up if {
+	v := json.remove(unverified_step_up, ["ctx/completions"])
+	d := upi.decision with input as v
+	d.result == "STEP_UP"
+}
+
+test_a_completion_never_rescues_a_limit_breach if {
+	v := with_completions(object.union(unverified_step_up, {"facts": {"amount_inr": 25000}}), [completed("OTP_OR_APPROVED_FACTOR")])
+	d := upi.decision with input as v
+	d.result == "DENY"
+	d.reason == "PER_TXN_LIMIT_EXCEEDED"
+}
+
+test_a_completion_never_rescues_the_guarded_cap if {
+	v := with_completions(object.union(base, {"facts": {"amount_inr": 12000, "device_verified": false}}), [completed("OTP_OR_APPROVED_FACTOR")])
+	d := upi.decision with input as v
+	d.result == "DENY"
+	d.reason == "UPI_GUARDED_LIMIT_EXCEEDED"
+}
+
+test_a_step_up_payment_within_the_guarded_cap_is_permitted_with_a_completion if {
+	v := with_completions(object.union(base, {"facts": {"amount_inr": 5000, "device_verified": false}}), [completed("OTP_OR_APPROVED_FACTOR")])
+	upi.decision.result == "PERMIT" with input as v
 }

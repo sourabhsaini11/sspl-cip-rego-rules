@@ -9,6 +9,8 @@ package rulesgen
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +29,12 @@ type Options struct {
 	Catalogue string   // catalogue export: one row per rule, applies_to already split
 	Profiles  []string // published-profile files
 	Out       string   // directory to create; must not exist or must be empty
+	// PolicyDataOut, when set, receives the bindings as a separate policy-data artefact (policy-data.manifest.template.json
+	// and bindings/...), and the bundle in Out then carries none. A published profile is bank configuration: the PDE
+	// architecture document (section 13) says a configuration-only change needs a new snapshot and never a new bundle, so
+	// the same rules and templates always give the same bundle bytes. Empty keeps the legacy layout, with the bindings in
+	// the bundle manifest, until the PDS loads policy data (plan Task 10). It must differ from Out and be empty too.
+	PolicyDataOut string
 }
 
 // Skip is a configured rule that produced no binding, and why.
@@ -113,6 +121,14 @@ func Generate(o Options) (Report, error) {
 	if err := checkOut(o.Out); err != nil {
 		return Report{}, err
 	}
+	if o.PolicyDataOut != "" {
+		if sameDir(o.Out, o.PolicyDataOut) {
+			return Report{}, errors.New("rulesgen: the policy-data directory must differ from the bundle directory")
+		}
+		if err := checkOut(o.PolicyDataOut); err != nil {
+			return Report{}, err
+		}
+	}
 	cat, err := readCatalogue(o.Catalogue)
 	if err != nil {
 		return Report{}, err
@@ -145,12 +161,71 @@ func Generate(o Options) (Report, error) {
 		}
 		return versionNumber(a.Version) < versionNumber(b.Version)
 	})
+	var policyFiles map[string][]byte
+	if o.PolicyDataOut != "" {
+		if policyFiles, err = splitPolicyData(m, files); err != nil {
+			return Report{}, err
+		}
+	}
 	mb, err := marshal(m)
 	if err != nil {
 		return Report{}, err
 	}
 	files["manifest.template.json"] = mb
-	return rep, writeAll(o.Out, files)
+	if err := writeAll(o.Out, files); err != nil {
+		return Report{}, err
+	}
+	if policyFiles != nil {
+		return rep, writeAll(o.PolicyDataOut, policyFiles)
+	}
+	return rep, nil
+}
+
+// policyDataManifest is policy-data.manifest.template.json: the unsigned list of the binding files and their digests.
+// The signing step stamps the revision and the MAC, as it does for the bundle; the revision moves with the
+// configuration, not with the rules.
+type policyDataManifest struct {
+	Format        string              `json:"format"`
+	BundleID      string              `json:"bundle_id"`
+	InputContract string              `json:"input_contract"`
+	Bindings      []policyDataBinding `json:"bindings"`
+}
+
+type policyDataBinding struct {
+	Profile string `json:"profile"`
+	Version string `json:"version"`
+	Path    string `json:"path"`
+	Digest  string `json:"digest"`
+}
+
+// splitPolicyData moves the binding files and their manifest entries out of the bundle's files and manifest into a
+// policy-data artefact, and returns that artefact's files.
+func splitPolicyData(m *manifestFile, files map[string][]byte) (map[string][]byte, error) {
+	pd := policyDataManifest{Format: "pde-policy-data/v1", BundleID: "pde-policy-data", InputContract: m.InputContract, Bindings: []policyDataBinding{}}
+	out := map[string][]byte{}
+	for _, b := range m.Bindings {
+		raw, ok := files[b.Path]
+		if !ok {
+			return nil, fmt.Errorf("rulesgen: bindings file %s was not staged", b.Path)
+		}
+		sum := sha256.Sum256(raw)
+		pd.Bindings = append(pd.Bindings, policyDataBinding{Profile: b.Profile, Version: b.Version, Path: b.Path, Digest: "sha256:" + hex.EncodeToString(sum[:])})
+		out[b.Path] = raw
+		delete(files, b.Path)
+	}
+	m.Bindings = nil
+	mb, err := marshal(pd)
+	if err != nil {
+		return nil, err
+	}
+	out["policy-data.manifest.template.json"] = mb
+	return out, nil
+}
+
+func sameDir(a, b string) bool {
+	aa, errA := filepath.Abs(a)
+	bb, errB := filepath.Abs(b)
+	return errA == nil && errB == nil && aa == bb
 }
 
 func bindProfile(root, path string, cat map[string]catalogueRule, m *manifestFile, templates map[string]templateMeta, files map[string][]byte, rep *Report) error {

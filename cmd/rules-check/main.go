@@ -24,6 +24,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, "rules-check:", err)
 		os.Exit(2)
 	}
+	// The control-plane family has its own manifest, registry and bundle (docs/rules-contract.md in the PDS, section 11).
+	control, err := rulescheck.CheckControl(context.Background(), *root)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "rules-check:", err)
+		os.Exit(2)
+	}
+	problems = append(problems, control...)
 	for _, p := range problems {
 		fmt.Println(p)
 	}

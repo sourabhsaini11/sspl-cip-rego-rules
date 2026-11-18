@@ -167,3 +167,54 @@ func TestACaseCanRunUnderAPostureAndSeeWhatOnlyThatPostureChanges(t *testing.T) 
 	require.Equal(t, 1, rep.Pairs[0].Narrowed, "guarded posture: the newer version is stricter")
 	require.Contains(t, rep.Markdown(), "at the limit, guarded")
 }
+
+const narrowerByPostureLimit = `decision := {"result": "PERMIT", "reason": "OK"} if input.facts.amount <= input.posture.limit_inr
+
+decision := {"result": "DENY", "reason": "OVER"} if input.facts.amount > input.posture.limit_inr
+`
+
+func TestACaseCanCarryThePostureLimit(t *testing.T) {
+	root := compatRoot(t, narrowerByPostureLimit)
+	p := filepath.Join(root, "conformance", "compat", "bridge_demo.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+	require.NoError(t, os.WriteFile(p, []byte(`{"profile":"BRIDGE-DEMO","operation":"PAY","cases":[
+ {"name":"over the posture limit","posture":"GUARDED","posture_limit_inr":3,"facts":{"amount":5},"values":{"limit":5}}]}`), 0o600))
+
+	rep, err := conformance.CompareRepo(context.Background(), root)
+
+	require.NoError(t, err)
+	require.True(t, rep.OK(), rep.Markdown())
+	require.Equal(t, 1, rep.Pairs[0].Narrowed, "the posture limit reaches the rules")
+}
+
+const permitsOnACompletion = `decision := {"result": "PERMIT", "reason": "OK"} if count(input.ctx.completions) > 0
+
+decision := {"result": "STEP_UP", "reason": "NEED_FACTOR"} if count(input.ctx.completions) == 0
+`
+
+const alwaysStepsUp = `decision := {"result": "STEP_UP", "reason": "NEED_FACTOR"} if true
+`
+
+func TestACaseCanCarryVerifiedCompletionsAndTheWideningIsReported(t *testing.T) {
+	root := t.TempDir()
+	put := func(rel, content string) {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		require.NoError(t, os.WriteFile(p, []byte(content), 0o600))
+	}
+	put("rulesets/manifest.template.json", `{"rulesets":[
+ {"profile":"BRIDGE-DEMO","version":"v1","package":"cip.pde.demo.v1","path":"demo/v1"},
+ {"profile":"BRIDGE-DEMO","version":"v2","package":"cip.pde.demo.v2","path":"demo/v2"}]}`)
+	put("rulesets/demo/v1/policy.rego", "package cip.pde.demo.v1\n\n"+alwaysStepsUp)
+	put("rulesets/demo/v2/policy.rego", "package cip.pde.demo.v2\n\n"+permitsOnACompletion)
+	put("conformance/compat/bridge_demo.json", `{"profile":"BRIDGE-DEMO","operation":"PAY","cases":[
+ {"name":"no completion","facts":{},"values":{}},
+ {"name":"a verified completion","completions":[{"obligation_ref":"OTP","completed_by":"a","completed_at":"2026-10-15T14:29:00+05:30"}],"facts":{},"values":{}}]}`)
+
+	rep, err := conformance.CompareRepo(context.Background(), root)
+
+	require.NoError(t, err)
+	require.False(t, rep.OK(), "v2 permits what v1 steps up: a widening that must be reviewed")
+	require.Equal(t, "a verified completion", rep.Pairs[0].Unreviewed[0].Case)
+	require.Equal(t, 1, rep.Pairs[0].Same, "without a completion both step up")
+}

@@ -69,6 +69,12 @@
       "version": "v7",
       "package": "cip.pde.bridge_upi.v7",
       "path": "bridge_upi/v7"
+    },
+    {
+      "profile": "BRIDGE-BRANCH-BANKING",
+      "version": "v2",
+      "package": "cip.pde.bridge_branch_banking.v2",
+      "path": "bridge_branch_banking/v2"
     }
   ]
 }

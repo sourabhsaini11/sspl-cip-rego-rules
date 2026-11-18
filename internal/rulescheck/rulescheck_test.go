@@ -382,3 +382,17 @@ func TestALiteralForAProfileNotInTheManifestIsCaught(t *testing.T) {
 
 	requireProblem(t, problems(t, root), "BRIDGE-GHOST", "not in the manifest")
 }
+
+// editControlReasons rewrites the control reason registry through f.
+func editControlReasons(t *testing.T, root string, f func(map[string]any)) {
+	t.Helper()
+	p := filepath.Join(root, "contract", "control-reasons.json")
+	b, err := os.ReadFile(p)
+	require.NoError(t, err)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(b, &m))
+	f(m)
+	out, err := json.MarshalIndent(m, "", "  ")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(p, out, 0o600))
+}

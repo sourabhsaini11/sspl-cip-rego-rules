@@ -120,10 +120,10 @@ Catalogue owners** (the bank's values arrive in the signed state under these key
 | Journey | Ruleset | Operations | Results it can give | Values the bank's state must publish |
 |---|---|---|---|---|
 | 1 UPI step-up (UPI-R19) | `BRIDGE-UPI v6` | `UPI_PAY` | PERMIT, STEP_UP (`UPI_DEVICE_RISK`, obligation `OTP_OR_APPROVED_FACTOR`), DENY | `per_txn_limit_inr`, `daily_limit_inr`, `night_cap_inr`, `step_up_threshold_inr` |
-| 1b UPI under a GUARDED posture (section 3 scenario) | `BRIDGE-UPI v7` | `UPI_PAY` | v6 results, plus DENY (`UPI_GUARDED_LIMIT_EXCEEDED`, `details.effective_limit_inr`) above the posture cap | the v6 keys, plus `guarded_cap_inr` (needed only while the posture is GUARDED). A posture other than NORMAL or GUARDED, such as the RESTRICTED the PDS reports for a missing or expired posture, leaves the decision undefined |
+| 1b UPI under a GUARDED posture (section 3 scenario) | `BRIDGE-UPI v7` | `UPI_PAY` | v6 results (a verified completion of `OTP_OR_APPROVED_FACTOR` satisfies the step-up), plus DENY (`UPI_GUARDED_LIMIT_EXCEEDED`, `details.effective_limit_inr`) above the posture cap | the v6 keys; the GUARDED cap arrives with the posture (`input.posture.limit_inr`), not from the bank state. A posture other than NORMAL or GUARDED, such as the RESTRICTED the PDS reports for a missing or expired posture, leaves the decision undefined |
 | 2 Mobile device enrolment | `BRIDGE-MOBILE-BANKING v1` | `DEVICE_ENROL`, `BALANCE_ENQUIRY` | PERMIT, STEP_UP, DENY (`BANK_SCOPE_MISMATCH`) | none |
 | 3 New beneficiary cooling period | `BRIDGE-INTERNET-BANKING v1` | `ADD_BENEFICIARY`, `TRANSFER_TO_BENEFICIARY` | PERMIT, DENY (`WAIT_COOLING_PERIOD`), STEP_UP | `cooling_period_minutes` |
-| 4 Teller cash withdrawal | `BRIDGE-BRANCH-BANKING v1` | `CASH_WITHDRAWAL` | PERMIT, REFER (`BRANCH_LIMIT_01`, `REQUIRE_DUAL_CONTROL`), DENY (`SEGREGATION_OF_DUTIES`) | `branch_delegation_limit_inr` |
+| 4 Teller cash withdrawal | `BRIDGE-BRANCH-BANKING v2` (v1 read the supervisor's approval from facts a client could set; v2 reads a verified completion of `REQUIRE_DUAL_CONTROL`, and the approver is compared with `teller_id`) | `CASH_WITHDRAWAL` | PERMIT, REFER (`BRANCH_LIMIT_01`, `REQUIRE_DUAL_CONTROL`), DENY (`SEGREGATION_OF_DUTIES`) | `branch_delegation_limit_inr` |
 | 5 KCC evidence | `BRIDGE-KCC v1` | `KCC_ASSESS` | PERMIT (prerequisites hold), REFER (`LAND_EVIDENCE_MISMATCH`), NEED_EVIDENCE | `kcc_area_tolerance_milli_acres` |
 | 6 AePS BC withdrawal | `BRIDGE-AEPS v3` | `AEPS_WITHDRAWAL` | PERMIT, REFER (`BC_EXPOSURE_LIMIT_EXCEEDED`), DENY | `daily_ceiling_inr`, `step_up_threshold_inr`, `bc_daily_exposure_limit_inr` |
 | 7 BBPS biller eligibility | `BRIDGE-BBPS v1` | `BILL_PAYMENT` | PERMIT, DENY (`BILLER_NOT_ENABLED`) | `enabled_biller_classes`, `permitted_instruments` (lists of names) |
@@ -161,3 +161,40 @@ it may be signed and promoted (the gate, the tests, lint, conformance, and a vul
 - **Not here:** regional version skew (regions are not modelled yet) and latency (the PDS has `make bench`).
 - **CI.** `.gitlab-ci.yml` runs the gate, conformance, `govulncheck` and the proposal export. It uses plain jobs because the GitLab
   project does not exist yet; align it with the shared components when it does.
+
+
+## Control-plane rules (PDE architecture document component 2, Journey 8)
+
+`control/` holds the rules the Landing Zone's Control Plane OPA runs, not the PDS: `validate_configuration/v1`, which says whether a
+proposed bank configuration (L3) is technically permissible against the Service Profile's field rules and the inherited levels (L1 platform,
+L2 FI class). The document's example (L1 100,000, L2 50,000) gives VALID for 20,000 and INVALID for 60,000. **VALID is evidence, never approval:**
+the output is `{valid, reason_codes, rule_refs, effective, provenance}` and nothing else, and missing or partial input is INVALID
+(`INPUT_INCOMPLETE`), never VALID by default. The contract is `../sspl-cip-policy-decision-service/docs/rules-contract.md`, section 11; the override
+semantics are provisional (the document defines the six names, not their meaning).
+
+The family has its own manifest (`control/manifest.template.json`, bundle `pde-control-rules`), its own registry (`contract/control-reasons.json`)
+and its own gate, `rulescheck.CheckControl`, which `make check` runs after the runtime gate: the same compile, test and literal checks, a closed set of
+output keys evaluated on the examples each ruleset ships (`examples.json`), registered reasons and rule references, and the separation of the two bundles
+(a control package may not appear in the runtime manifest or the reverse). `make mutate` mutation-tests the control rules too.
+
+`release_access/v1` is Journey 8: may this actor submit, approve or activate this change? The same actor approving or activating their own change is DENY
+`SAME_ACTOR`; activation needs the release approver and PHOENIX gates, a `TESTPACK-` record and an approval by someone other than the author. PERMIT means the action
+may be attempted, never that it is approved or done. Which role may do what is the Landing Zone's RBAC and arrives as `input.permissions`: the rules hold no role name.
+
+
+## Bindings as policy data (PDE architecture document, section 13)
+
+A published profile is bank configuration. The document says a configuration-only change needs a new signed snapshot and **never** a new bundle: "a bundle
+upload must never silently activate an unapproved bank configuration". So `rules-gen -policy-data DIR` writes the bindings as a separate artefact
+(`policy-data.manifest.template.json`, listing each binding file with its sha256, and `bindings/...`), and the bundle written to `-out` carries none:
+**the same rules and templates always give the same bundle bytes** (tested). The policy data is signed and released on its own revision, with its own approval.
+Without `-policy-data` the legacy layout (bindings in the bundle manifest) is unchanged until the PDS loads policy data (plan Task 10 in the PDS repository).
+
+
+## Pair conformance (PDE architecture document component 11)
+
+`make pairtest` (part of `make promote-check`) runs `rules-pairtest` on `conformance/pairs/bridge_upi_v7.json`: the control rules judge each proposed configuration (the document's 20,000 is accepted, 60,000
+violates the FI class limit, another bank's configuration is refused), the runtime ruleset decides under the configuration they approve (a GUARDED posture still narrows it; no posture limit or a RESTRICTED posture
+is undefined), and the ruleset's and the control rules' mutation and N/N-1 checks are clean. Only a pass writes `build/testpack-upi-v7.json`, a `pde-testpack/v1` record with the id
+`TESTPACK-UPI-v7-<8 hex>-PASS` and the digests of what was tested; a failure writes nothing. `pds-release -testpack-file` (PDS repository) checks the record against the policy the bundle carries.
+Spec format and record: `../sspl-cip-policy-decision-service/docs/rules-contract.md`, section 4.4a.

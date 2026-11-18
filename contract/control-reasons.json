@@ -1,0 +1,167 @@
+{
+  "registry_version": 1,
+  "description": "Reasons, rule references and output keys of the control-plane rules (PDE architecture document component 2; docs/rules-contract.md in the PDS, section 11). Separate from contract/reasons.json: control rules never ship in the runtime bundle.",
+  "reasons": [
+    {
+      "ruleset": "validate_configuration",
+      "reason": "INPUT_INCOMPLETE",
+      "rule_ref": "RULE-INP-001"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "reason": "TENANCY_MISMATCH",
+      "rule_ref": "RULE-TEN-001"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "reason": "UNKNOWN_FIELD",
+      "rule_ref": "RULE-SCH-001"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "reason": "UNKNOWN_OVERRIDE_TYPE",
+      "rule_ref": "RULE-OVR-003"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "reason": "TYPE_MISMATCH",
+      "rule_ref": "RULE-TYP-001"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "reason": "RUNTIME_FACT_NOT_STORABLE",
+      "rule_ref": "RULE-RTF-001"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "reason": "OVERRIDE_NOT_PERMITTED",
+      "rule_ref": "RULE-OVR-001"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "reason": "WIDENS_INHERITED_VALUE",
+      "rule_ref": "RULE-OVR-002"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "reason": "OUT_OF_RANGE",
+      "rule_ref": "RULE-RNG-001"
+    },
+    {
+      "ruleset": "release_access",
+      "reason": "SAME_ACTOR",
+      "rule_ref": "RULE-REL-001"
+    },
+    {
+      "ruleset": "release_access",
+      "reason": "ROLE_NOT_PERMITTED",
+      "rule_ref": "RULE-REL-002"
+    },
+    {
+      "ruleset": "release_access",
+      "reason": "GATES_INCOMPLETE",
+      "rule_ref": "RULE-REL-003"
+    },
+    {
+      "ruleset": "release_access",
+      "reason": "CHANGE_KIND_NOT_PERMITTED",
+      "rule_ref": "RULE-REL-004"
+    },
+    {
+      "ruleset": "release_access",
+      "reason": "SUBMIT_PERMITTED",
+      "rule_ref": "RULE-REL-010"
+    },
+    {
+      "ruleset": "release_access",
+      "reason": "APPROVAL_PERMITTED",
+      "rule_ref": "RULE-REL-011"
+    },
+    {
+      "ruleset": "release_access",
+      "reason": "ACTIVATION_PERMITTED",
+      "rule_ref": "RULE-REL-012"
+    },
+    {
+      "ruleset": "release_access",
+      "reason": "INPUT_INCOMPLETE",
+      "rule_ref": "RULE-INP-001"
+    }
+  ],
+  "literals": [
+    {
+      "ruleset": "validate_configuration",
+      "literal": "NO_OVERRIDE"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "literal": "PLATFORM_ONLY"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "literal": "FI_NARROW_ONLY"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "literal": "BANK_NARROW_ONLY"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "literal": "BANK_WITHIN_RANGE"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "literal": "RUNTIME_FACT"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "literal": "L1"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "literal": "L2"
+    },
+    {
+      "ruleset": "validate_configuration",
+      "literal": "L3"
+    },
+    {
+      "ruleset": "release_access",
+      "literal": "SUBMIT"
+    },
+    {
+      "ruleset": "release_access",
+      "literal": "APPROVE"
+    },
+    {
+      "ruleset": "release_access",
+      "literal": "ACTIVATE"
+    },
+    {
+      "ruleset": "release_access",
+      "literal": "POLICY"
+    },
+    {
+      "ruleset": "release_access",
+      "literal": "CONFIGURATION"
+    }
+  ],
+  "results": [
+    "PERMIT",
+    "DENY"
+  ],
+  "output_keys": {
+    "validate_configuration": [
+      "valid",
+      "reason_codes",
+      "rule_refs",
+      "effective",
+      "provenance"
+    ],
+    "release_access": [
+      "result",
+      "reason_codes",
+      "rule_refs"
+    ]
+  }
+}

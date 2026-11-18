@@ -1,0 +1,153 @@
+{
+  "profile": "BRIDGE-BRANCH-BANKING",
+  "operation": "CASH_WITHDRAWAL",
+  "cases": [
+    {
+      "name": "within the delegation",
+      "facts": {
+        "amount_inr": 40000,
+        "teller_role_valid": true,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1"
+      },
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    },
+    {
+      "name": "above the delegation, no approval",
+      "facts": {
+        "amount_inr": 85000,
+        "teller_role_valid": true,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1"
+      },
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    },
+    {
+      "name": "above the delegation, independent approval",
+      "facts": {
+        "amount_inr": 85000,
+        "teller_role_valid": true,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1",
+        "supervisor_id": "SUP-9",
+        "approval_intent_digest": "sha256:intent-1",
+        "supervisor_session_fresh": true
+      },
+      "completions": [
+        {
+          "obligation_ref": "REQUIRE_DUAL_CONTROL",
+          "completed_by": "SUP-9",
+          "completed_at": "2026-10-15T11:29:00+05:30"
+        }
+      ],
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    },
+    {
+      "name": "above the delegation, the teller approves their own withdrawal",
+      "facts": {
+        "amount_inr": 85000,
+        "teller_role_valid": true,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1",
+        "supervisor_id": "TLR-1",
+        "approval_intent_digest": "sha256:intent-1",
+        "supervisor_session_fresh": true
+      },
+      "completions": [
+        {
+          "obligation_ref": "REQUIRE_DUAL_CONTROL",
+          "completed_by": "TLR-1",
+          "completed_at": "2026-10-15T11:29:00+05:30"
+        }
+      ],
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    },
+    {
+      "name": "a teller without the role",
+      "facts": {
+        "amount_inr": 40000,
+        "teller_role_valid": false,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1"
+      },
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    },
+    {
+      "name": "an approval that is only a flag in the facts (v1 trusted it; v2 needs a verified completion)",
+      "facts": {
+        "amount_inr": 85000,
+        "teller_role_valid": true,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1",
+        "supervisor_id": "SUP-9",
+        "approval_intent_digest": "sha256:intent-1",
+        "supervisor_session_fresh": true
+      },
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    },
+    {
+      "name": "an approval whose supervisor session is not fresh",
+      "facts": {
+        "amount_inr": 85000,
+        "teller_role_valid": true,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1",
+        "supervisor_id": "SUP-9",
+        "approval_intent_digest": "sha256:intent-1",
+        "supervisor_session_fresh": false
+      },
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    },
+    {
+      "name": "at the delegation limit",
+      "facts": {
+        "amount_inr": 50000,
+        "teller_role_valid": true,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1"
+      },
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    },
+    {
+      "name": "one rupee over the delegation limit",
+      "facts": {
+        "amount_inr": 50001,
+        "teller_role_valid": true,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1"
+      },
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    },
+    {
+      "name": "an invalid amount",
+      "facts": {
+        "amount_inr": 0,
+        "teller_role_valid": true,
+        "teller_id": "TLR-1",
+        "intent_digest": "sha256:intent-1"
+      },
+      "values": {
+        "branch_delegation_limit_inr": 50000
+      }
+    }
+  ],
+  "allowed_widening": []
+}

@@ -1,0 +1,207 @@
+{
+  "profile": "BRIDGE-UPI",
+  "version": "v7",
+  "operation": "UPI_PAY",
+  "description": "Pair conformance for BRIDGE-UPI v7 (PDE architecture document component 11 and section 3: Rs.20,000 is accepted, Rs.60,000 violates L2, KGB002 cannot receive KGB001's configuration, a GUARDED posture still narrows the approved limit). Dummy values from the document, not SSPL-approved limits.",
+  "configuration": {
+    "schema": {
+      "ref": "BRIDGE-UPI@1.2",
+      "fields": {
+        "per_txn_limit_inr": {
+          "override": "BANK_NARROW_ONLY",
+          "type": "int"
+        },
+        "daily_limit_inr": {
+          "override": "BANK_NARROW_ONLY",
+          "type": "int"
+        },
+        "night_cap_inr": {
+          "override": "BANK_NARROW_ONLY",
+          "type": "int"
+        },
+        "step_up_threshold_inr": {
+          "override": "BANK_NARROW_ONLY",
+          "type": "int"
+        }
+      }
+    },
+    "l1": {
+      "per_txn_limit_inr": 100000,
+      "daily_limit_inr": 100000,
+      "night_cap_inr": 100000,
+      "step_up_threshold_inr": 5000
+    },
+    "l2": {
+      "per_txn_limit_inr": 50000
+    },
+    "cases": [
+      {
+        "name": "the document's 20,000 limit is accepted",
+        "bank": "KGB001",
+        "values": {
+          "per_txn_limit_inr": 20000,
+          "daily_limit_inr": 50000,
+          "night_cap_inr": 20000,
+          "step_up_threshold_inr": 3000
+        },
+        "want_valid": true
+      },
+      {
+        "name": "a 60,000 bank limit violates the FI class limit (L2)",
+        "bank": "KGB001",
+        "values": {
+          "per_txn_limit_inr": 60000,
+          "daily_limit_inr": 50000,
+          "night_cap_inr": 20000,
+          "step_up_threshold_inr": 3000
+        },
+        "want_valid": false,
+        "want_reasons": [
+          "WIDENS_INHERITED_VALUE"
+        ]
+      },
+      {
+        "name": "KGB002 cannot receive KGB001's configuration",
+        "bank": "KGB002",
+        "proposal_bank": "KGB001",
+        "values": {
+          "per_txn_limit_inr": 20000,
+          "daily_limit_inr": 50000,
+          "night_cap_inr": 20000,
+          "step_up_threshold_inr": 3000
+        },
+        "want_valid": false,
+        "want_reasons": [
+          "TENANCY_MISMATCH"
+        ]
+      },
+      {
+        "name": "a maker from another bank cannot propose",
+        "bank": "KGB001",
+        "maker_bank": "KGB002",
+        "values": {
+          "per_txn_limit_inr": 20000,
+          "daily_limit_inr": 50000,
+          "night_cap_inr": 20000,
+          "step_up_threshold_inr": 3000
+        },
+        "want_valid": false,
+        "want_reasons": [
+          "TENANCY_MISMATCH"
+        ]
+      },
+      {
+        "name": "a limit at the FI class limit is accepted",
+        "bank": "KGB001",
+        "values": {
+          "per_txn_limit_inr": 50000,
+          "daily_limit_inr": 50000,
+          "night_cap_inr": 20000,
+          "step_up_threshold_inr": 3000
+        },
+        "want_valid": true
+      }
+    ]
+  },
+  "runtime": [
+    {
+      "name": "a 12,000 payment under a GUARDED posture is denied with an effective limit of 8,000",
+      "values_from": "the document's 20,000 limit is accepted",
+      "posture": {
+        "operating": "GUARDED",
+        "limit_inr": 8000
+      },
+      "facts": {
+        "amount_inr": 12000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "want_result": "DENY",
+      "want_reason": "UPI_GUARDED_LIMIT_EXCEEDED"
+    },
+    {
+      "name": "the same payment under a NORMAL posture is permitted",
+      "values_from": "the document's 20,000 limit is accepted",
+      "posture": {
+        "operating": "NORMAL"
+      },
+      "facts": {
+        "amount_inr": 12000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "want_result": "PERMIT",
+      "want_reason": "WITHIN_LIMITS"
+    },
+    {
+      "name": "a 5,000 payment under GUARDED is within the cap",
+      "values_from": "the document's 20,000 limit is accepted",
+      "posture": {
+        "operating": "GUARDED",
+        "limit_inr": 8000
+      },
+      "facts": {
+        "amount_inr": 5000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "want_result": "PERMIT",
+      "want_reason": "WITHIN_LIMITS"
+    },
+    {
+      "name": "GUARDED never widens: a cap above the approved limit changes nothing",
+      "values_from": "the document's 20,000 limit is accepted",
+      "posture": {
+        "operating": "GUARDED",
+        "limit_inr": 30000
+      },
+      "facts": {
+        "amount_inr": 25000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "want_result": "DENY",
+      "want_reason": "PER_TXN_LIMIT_EXCEEDED"
+    },
+    {
+      "name": "a GUARDED posture without its limit is undefined, never a permit",
+      "values_from": "the document's 20,000 limit is accepted",
+      "posture": {
+        "operating": "GUARDED"
+      },
+      "facts": {
+        "amount_inr": 5000,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "want_undefined": true
+    },
+    {
+      "name": "a RESTRICTED posture is undefined, never a permit",
+      "values_from": "the document's 20,000 limit is accepted",
+      "posture": {
+        "operating": "RESTRICTED"
+      },
+      "facts": {
+        "amount_inr": 500,
+        "payee_vpa": "shop@bank",
+        "device_verified": true
+      },
+      "want_undefined": true
+    },
+    {
+      "name": "an unverified device above the threshold steps up under the approved configuration",
+      "values_from": "the document's 20,000 limit is accepted",
+      "posture": {
+        "operating": "NORMAL"
+      },
+      "facts": {
+        "amount_inr": 5000,
+        "payee_vpa": "shop@bank",
+        "device_verified": false
+      },
+      "want_result": "STEP_UP",
+      "want_reason": "UPI_DEVICE_RISK"
+    }
+  ]
+}

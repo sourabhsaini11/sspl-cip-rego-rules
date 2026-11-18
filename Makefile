@@ -1,4 +1,4 @@
-.PHONY: check test lint fmt vet mutate compat conformance vuln promote-check
+.PHONY: check test lint fmt vet mutate compat conformance vuln promote-check pairtest
 
 ## check: the pipeline gate. Exit 0 only if the rules may be signed and shipped.
 check:
@@ -31,5 +31,9 @@ conformance: mutate compat
 vuln:
 	govulncheck ./...
 
+## pairtest: the pair conformance gate (configuration and policy tested together); writes the TESTPACK- record pds-release requires
+pairtest:
+	go run ./cmd/rules-pairtest -spec conformance/pairs/bridge_upi_v7.json -out build/testpack-upi-v7.json
+
 ## promote-check: everything a ruleset must pass before it may be signed and promoted
-promote-check: check test lint conformance vuln
+promote-check: check test lint conformance pairtest vuln

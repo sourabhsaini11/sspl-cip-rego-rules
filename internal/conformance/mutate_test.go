@@ -2,6 +2,8 @@ package conformance_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -154,4 +156,40 @@ func TestAReviewedEquivalentMutantIsAcceptedAndAStaleAcceptanceIsNot(t *testing.
 	require.NoError(t, err)
 	require.False(t, rep.OK(), "an acceptance that matches nothing is stale and fails")
 	require.Len(t, rep.Stale, 1)
+}
+
+func TestTheControlRulesAreMutationTestedToo(t *testing.T) {
+	root := scratchRoot(t, weakTests)
+	dir := filepath.Join(root, "control", "demo_validate", "v1")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "control", "manifest.template.json"),
+		[]byte(`{"rulesets":[{"name":"demo_validate","version":"v1","package":"cip.pde.demo.v1","path":"demo_validate/v1"}]}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "policy.rego"), []byte(policy), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "policy_test.rego"), []byte(weakTests), 0o600))
+	writeAccepted(t, root, nil)
+
+	rep, err := conformance.MutateRepo(context.Background(), root)
+
+	require.NoError(t, err)
+	var names []string
+	for _, r := range rep.Rulesets {
+		names = append(names, r.Ruleset)
+	}
+	require.Contains(t, names, "CONTROL demo_validate v1", "the control family is in the report")
+	require.False(t, rep.OK(), "the weak control tests leave survivors, and they are not accepted")
+}
+
+func TestMutateRepoOnlyRunsOneRulesetAndIgnoresTheOthersAcceptances(t *testing.T) {
+	rep, err := conformance.MutateRepoOnly(context.Background(), "../..", "BRIDGE-UPI v7")
+
+	require.NoError(t, err)
+	require.Len(t, rep.Rulesets, 1)
+	require.Equal(t, "BRIDGE-UPI v7", rep.Rulesets[0].Ruleset)
+	require.Positive(t, rep.Rulesets[0].Total)
+	require.True(t, rep.OK(), "acceptances for other rulesets are not stale here:\n%s", rep.Markdown())
+}
+
+func TestMutateRepoOnlyRefusesAnUnknownRuleset(t *testing.T) {
+	_, err := conformance.MutateRepoOnly(context.Background(), "../..", "BRIDGE-NOPE v9")
+	require.ErrorContains(t, err, "BRIDGE-NOPE v9")
 }

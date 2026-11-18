@@ -1,0 +1,20 @@
+{
+  "bundle_id": "pde-control-rules",
+  "revision": "2026.11.18-1",
+  "input_contract": "control-v1",
+  "git_commit": "0000000000000000000000000000000000000000",
+  "rulesets": [
+    {
+      "name": "validate_configuration",
+      "version": "v1",
+      "package": "cip.pde.control.validate_configuration.v1",
+      "path": "validate_configuration/v1"
+    },
+    {
+      "name": "release_access",
+      "version": "v1",
+      "package": "cip.pde.control.release_access.v1",
+      "path": "release_access/v1"
+    }
+  ]
+}
