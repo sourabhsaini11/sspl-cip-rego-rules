@@ -481,3 +481,42 @@ func TestAMissingCatalogueIsNotAProblem(t *testing.T) {
 	require.NoError(t, os.Remove(filepath.Join(root, safeReasonsRel)))
 	require.Empty(t, problems(t, root), "no catalogue means the text per result, which is a valid state")
 }
+
+// L5 provenance (PDE architecture document sections 14 and 29): a fact schema may say a fact needs a source and name the configuration key that bounds its age.
+// The gate applies the PDS's own rules to those keys, because the PDS refuses a bundle whose schema does not parse.
+func TestAFactSchemaMayDeclareProvenance(t *testing.T) {
+	root := scratch(t)
+	edit(t, root, "rulesets/bridge_kcc/v1/fact-schema.json", func(s string) string {
+		return strings.Replace(s, `"land_document_area_milli_acres": {"type": "int", "required": true}`,
+			`"land_document_area_milli_acres": {"type": "int", "required": true, "source_required": true, "max_age_key": "kcc_source_max_age_seconds"}`, 1)
+	})
+	require.Empty(t, problems(t, root))
+}
+
+func TestAMalformedProvenanceDeclarationIsCaught(t *testing.T) {
+	cases := map[string]string{
+		"a window with no source requirement": `"max_age_key": "kcc_source_max_age_seconds"`,
+		"a window that is not a config key":   `"source_required": true, "max_age_key": "3600"`,
+		"an unknown provenance key":           `"source_required": true, "freshness": 3600`,
+	}
+	for name, decl := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := scratch(t)
+			edit(t, root, "rulesets/bridge_kcc/v1/fact-schema.json", func(s string) string {
+				return strings.Replace(s, `"land_document_area_milli_acres": {"type": "int", "required": true}`,
+					`"land_document_area_milli_acres": {"type": "int", "required": true, `+decl+`}`, 1)
+			})
+			requireProblem(t, problems(t, root), "bridge_kcc", "fact")
+		})
+	}
+}
+
+func TestTheReasonsOfFactProvenanceAndQuarantineAreReservedForThePDS(t *testing.T) {
+	for _, reason := range []string{"FACT_SOURCE_MISSING", "FACT_SOURCE_STALE", "FACT_SOURCE_SCOPE_MISMATCH", "RULESET_QUARANTINED"} {
+		t.Run(reason, func(t *testing.T) {
+			root := scratch(t)
+			edit(t, root, upiPolicy, replaceAll(`"WITHIN_LIMITS"`, `"`+reason+`"`))
+			requireProblem(t, problems(t, root), reason, "reserved")
+		})
+	}
+}

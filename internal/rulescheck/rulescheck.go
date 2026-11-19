@@ -674,8 +674,12 @@ func (c *checker) checkStale(m *manifest) {
 	}
 }
 
+// maxAgeKeyRe is the PDS's rule for the configuration key that bounds a fact source's age.
+var maxAgeKeyRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+
 // checkFactSchema applies the PDS's own validation of fact-schema.json: closed keys, at least
-// one field, a known type, enum values only on enum fields.
+// one field, a known type, enum values only on enum fields, and the provenance keys (a fact that needs
+// a source, and the configuration key that bounds its age).
 func (c *checker) checkFactSchema(where, path string) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -684,9 +688,11 @@ func (c *checker) checkFactSchema(where, path string) {
 	}
 	var s struct {
 		Fields map[string]struct {
-			Type     string   `json:"type"`
-			Required bool     `json:"required"`
-			Enum     []string `json:"enum"`
+			Type           string   `json:"type"`
+			Required       bool     `json:"required"`
+			Enum           []string `json:"enum"`
+			SourceRequired bool     `json:"source_required"`
+			MaxAgeKey      string   `json:"max_age_key"`
 		} `json:"fields"`
 	}
 	if err := decodeStrict(raw, &s); err != nil {
@@ -710,6 +716,10 @@ func (c *checker) checkFactSchema(where, path string) {
 			c.add(where+"/fact-schema.json", "enum field %q has no values", n)
 		case f.Type != "enum" && len(f.Enum) > 0:
 			c.add(where+"/fact-schema.json", "field %q has enum values but type %q", n, f.Type)
+		case f.MaxAgeKey != "" && !f.SourceRequired:
+			c.add(where+"/fact-schema.json", "fact %q names a freshness window but does not require a source", n)
+		case f.MaxAgeKey != "" && !maxAgeKeyRe.MatchString(f.MaxAgeKey):
+			c.add(where+"/fact-schema.json", "fact %q: max_age_key must be a lower_snake_case configuration key", n)
 		}
 	}
 }

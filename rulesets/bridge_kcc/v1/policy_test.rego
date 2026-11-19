@@ -50,6 +50,16 @@ test_evidence_without_a_source_needs_evidence if {
 	d.reason == "SOURCE_REF_REQUIRED"
 }
 
+# Journey 5 (PDE architecture document section 21): a referral is only reached with a source reference. The evidence here conflicts (2.4 against 2.1 acres, beyond
+# the tolerance), and without its source it is still not a REFER: nothing is judged on an anonymous source, and nothing is referred on one either.
+test_a_referral_is_never_reached_without_a_source if {
+	d := kcc.decision with input as json.remove(base, ["facts/source_ref"])
+	d.result != "REFER"
+	d.result == "NEED_EVIDENCE"
+	d.obligation_refs == ["PROVIDE_SOURCE_REF"]
+	kcc.decision.result == "REFER" with input as base
+}
+
 test_a_missing_or_mistyped_tolerance_is_undefined if {
 	not kcc.decision with input as object.union(base, {"values": {"kcc_area_tolerance_milli_acres": "100"}})
 	not kcc.decision with input as json.remove(base, ["values/kcc_area_tolerance_milli_acres"])
