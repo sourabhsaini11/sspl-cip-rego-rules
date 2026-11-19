@@ -44,7 +44,8 @@
       "version": "v1",
       "package": "cip.pde.bridge_mobile_banking.v1",
       "path": "bridge_mobile_banking/v1",
-      "risk_class": "STANDARD"
+      "risk_class": "STANDARD",
+      "tenancy_reasons": ["BANK_SCOPE_MISMATCH"]
     },
     {
       "profile": "BRIDGE-INTERNET-BANKING",

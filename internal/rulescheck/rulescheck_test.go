@@ -520,3 +520,52 @@ func TestTheReasonsOfFactProvenanceAndQuarantineAreReservedForThePDS(t *testing.
 		})
 	}
 }
+
+// Cross-tenant denials the rules produce are always traced (PDE architecture document section 30). The registry says which of a profile's reasons cross a tenant
+// boundary; the signed manifest carries them to the PDS; the gate makes sure the two agree, because the PDS trusts the manifest and a disagreement would silently
+// stop a denial being traced.
+func TestTheMobileBankingScopeDenialIsDeclaredAsATenancyReasonAndTheTwoAgree(t *testing.T) {
+	require.Empty(t, problems(t, repoRoot))
+	raw, err := os.ReadFile(filepath.Join(repoRoot, manifestRel))
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"tenancy_reasons": ["BANK_SCOPE_MISMATCH"]`, "the declaration is in the manifest the PDS verifies")
+}
+
+func TestADisagreementBetweenTheRegistryAndTheManifestAboutTenancyIsCaught(t *testing.T) {
+	cases := map[string]struct {
+		mutate func(t *testing.T, r string)
+		want   []string
+	}{
+		"the manifest stops declaring a reason the registry flags": {func(t *testing.T, r string) {
+			edit(t, r, manifestRel, replaceAll(",\n      \"tenancy_reasons\": [\"BANK_SCOPE_MISMATCH\"]", ""))
+		}, []string{"BRIDGE-MOBILE-BANKING", "BANK_SCOPE_MISMATCH", "tenancy"}},
+		"the manifest declares a reason the registry does not flag": {func(t *testing.T, r string) {
+			editReasons(t, r, func(m map[string]any) {
+				for _, e := range m["reasons"].([]any) {
+					if e.(map[string]any)["reason"] == "BANK_SCOPE_MISMATCH" {
+						delete(e.(map[string]any), "tenancy")
+					}
+				}
+			})
+		}, []string{"BRIDGE-MOBILE-BANKING", "BANK_SCOPE_MISMATCH", "tenancy"}},
+		"the manifest declares a reason that is not registered for the profile": {func(t *testing.T, r string) {
+			edit(t, r, manifestRel, replaceAll(`"tenancy_reasons": ["BANK_SCOPE_MISMATCH"]`, `"tenancy_reasons": ["BANK_SCOPE_MISMATCH", "NEVER_REGISTERED"]`))
+		}, []string{"NEVER_REGISTERED", "tenancy"}},
+		"a tenancy reason that is not a denial": {func(t *testing.T, r string) {
+			editReasons(t, r, func(m map[string]any) {
+				for _, e := range m["reasons"].([]any) {
+					if e.(map[string]any)["reason"] == "DEVICE_KNOWN" {
+						e.(map[string]any)["tenancy"] = true
+					}
+				}
+			})
+		}, []string{"DEVICE_KNOWN", "tenancy", "DENY"}},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := scratch(t)
+			tc.mutate(t, root)
+			requireProblem(t, problems(t, root), tc.want...)
+		})
+	}
+}

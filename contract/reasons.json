@@ -84,7 +84,8 @@
       "profile": "BRIDGE-MOBILE-BANKING",
       "reason": "BANK_SCOPE_MISMATCH",
       "verdict": "DENY",
-      "reason_code": "CIP-POL-DENY"
+      "reason_code": "CIP-POL-DENY",
+      "tenancy": true
     },
     {
       "profile": "BRIDGE-MOBILE-BANKING",

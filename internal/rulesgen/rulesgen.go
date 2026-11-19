@@ -83,12 +83,13 @@ type manifestFile struct {
 }
 
 type rulesetEntry struct {
-	Profile         string `json:"profile"`
-	Version         string `json:"version"`
-	Package         string `json:"package"`
-	Path            string `json:"path"`
-	CompatibleSince string `json:"compatible_since,omitempty"`
-	RiskClass       string `json:"risk_class,omitempty"`
+	Profile         string   `json:"profile"`
+	Version         string   `json:"version"`
+	Package         string   `json:"package"`
+	Path            string   `json:"path"`
+	CompatibleSince string   `json:"compatible_since,omitempty"`
+	RiskClass       string   `json:"risk_class,omitempty"`
+	TenancyReasons  []string `json:"tenancy_reasons,omitempty"`
 }
 
 type templateEntry struct {

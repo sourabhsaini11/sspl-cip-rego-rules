@@ -197,3 +197,20 @@ func TestTheGeneratedManifestKeepsTheRiskClassOfEveryRuleset(t *testing.T) {
 		require.NotEmpty(t, c, id)
 	}
 }
+
+func TestTheGeneratedManifestKeepsTheTenancyReasons(t *testing.T) {
+	in := setup(t, catalogue, upiProfile("R-UPI-TXN-MAX"))
+
+	_, err := generate(in)
+
+	require.NoError(t, err)
+	m := readJSON(t, filepath.Join(in.out, "manifest.template.json"))
+	var declared []any
+	for _, e := range m["rulesets"].([]any) {
+		r := e.(map[string]any)
+		if r["profile"] == "BRIDGE-MOBILE-BANKING" {
+			declared, _ = r["tenancy_reasons"].([]any)
+		}
+	}
+	require.Equal(t, []any{"BANK_SCOPE_MISMATCH"}, declared, "the declaration is signed with the bundle, so it must survive generation")
+}

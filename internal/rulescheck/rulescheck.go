@@ -68,12 +68,13 @@ type manifest struct {
 }
 
 type entry struct {
-	Profile         string `json:"profile"`
-	Version         string `json:"version"`
-	Package         string `json:"package"`
-	Path            string `json:"path"`
-	CompatibleSince string `json:"compatible_since"`
-	RiskClass       string `json:"risk_class"`
+	Profile         string   `json:"profile"`
+	Version         string   `json:"version"`
+	Package         string   `json:"package"`
+	Path            string   `json:"path"`
+	CompatibleSince string   `json:"compatible_since"`
+	RiskClass       string   `json:"risk_class"`
+	TenancyReasons  []string `json:"tenancy_reasons"`
 }
 
 // riskClasses are the classes the PDS accepts in a signed manifest (PDS docs/rules-contract.md, section 4.5).
@@ -123,6 +124,9 @@ type regEntry struct {
 	Reason     string `json:"reason"`
 	Verdict    string `json:"verdict"`
 	ReasonCode string `json:"reason_code"`
+	// Tenancy marks a reason that means a request crossed a tenant boundary (PDE architecture document section 30: cross-tenant denials are always traced). The manifest
+	// carries it to the PDS; checkTenancy makes the two agree.
+	Tenancy bool `json:"tenancy"`
 }
 
 type checker struct {
@@ -338,6 +342,7 @@ func (c *checker) checkManifest(m *manifest) {
 		}
 		paths[e.Path], versions[who] = true, true
 	}
+	c.checkTenancy(m)
 	// Every version of a profile carries one class: an older version stays loadable, so a class that moves
 	// on the newest version alone would let a request ask for the older, lower-classed one.
 	byProfile := map[string]string{}
@@ -775,4 +780,47 @@ func decodeStrict(raw []byte, v any) error {
 		return errors.New("trailing data after the document")
 	}
 	return nil
+}
+
+// checkTenancy makes the manifest's tenancy_reasons and the registry's tenancy flags agree, per profile and for every version of it. The PDS trusts the signed
+// manifest, so a disagreement would silently stop a cross-tenant denial being traced. A tenancy reason must be registered for the profile and be a denial.
+func (c *checker) checkTenancy(m *manifest) {
+	if c.reg == nil {
+		return
+	}
+	flagged := map[string]map[string]bool{} // profile -> reasons flagged in the registry
+	known := map[string]map[string]string{} // profile -> reason -> verdict
+	for _, r := range c.reg.Reasons {
+		if known[r.Profile] == nil {
+			known[r.Profile] = map[string]string{}
+		}
+		known[r.Profile][r.Reason] = r.Verdict
+		if !r.Tenancy {
+			continue
+		}
+		if r.Verdict != "DENY" && r.Verdict != "REJECT" {
+			c.add(reasonsRel, "%s/%s: tenancy is set on a reason whose verdict is %s: only a DENY can be a cross-tenant denial", r.Profile, r.Reason, r.Verdict)
+		}
+		if flagged[r.Profile] == nil {
+			flagged[r.Profile] = map[string]bool{}
+		}
+		flagged[r.Profile][r.Reason] = true
+	}
+	for _, e := range m.Rulesets {
+		who := e.Profile + "@" + e.Version
+		declared := map[string]bool{}
+		for _, r := range e.TenancyReasons {
+			declared[r] = true
+			if _, ok := known[e.Profile][r]; !ok {
+				c.add(manifestRel, "%s: tenancy reason %s is not a registered reason of %s", who, r, e.Profile)
+			} else if !flagged[e.Profile][r] {
+				c.add(manifestRel, "%s: tenancy reason %s is declared here but the registry does not flag it as tenancy", who, r)
+			}
+		}
+		for r := range flagged[e.Profile] {
+			if !declared[r] {
+				c.add(manifestRel, "%s: the registry flags %s as a tenancy reason but this ruleset does not declare it, so the PDS would not trace that denial", who, r)
+			}
+		}
+	}
 }
