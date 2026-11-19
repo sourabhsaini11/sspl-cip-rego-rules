@@ -178,3 +178,22 @@ func TestGenerationRefusesToWriteIntoANonEmptyDirectory(t *testing.T) {
 	_, err := generate(in)
 	require.ErrorContains(t, err, "not empty")
 }
+
+func TestTheGeneratedManifestKeepsTheRiskClassOfEveryRuleset(t *testing.T) {
+	in := setup(t, catalogue, upiProfile("R-UPI-TXN-MAX"))
+
+	_, err := generate(in)
+
+	require.NoError(t, err)
+	m := readJSON(t, filepath.Join(in.out, "manifest.template.json"))
+	classes := map[string]string{}
+	for _, e := range m["rulesets"].([]any) {
+		r := e.(map[string]any)
+		classes[r["profile"].(string)+"@"+r["version"].(string)], _ = r["risk_class"].(string)
+	}
+	require.Equal(t, "CONSEQUENTIAL", classes["BRIDGE-UPI@v7"], "the class is signed with the bundle, so it must survive generation")
+	require.Equal(t, "LOW_RISK", classes["BRIDGE-BALANCE-INQUIRY@v1"])
+	for id, c := range classes {
+		require.NotEmpty(t, c, id)
+	}
+}

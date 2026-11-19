@@ -190,6 +190,8 @@ upload must never silently activate an unapproved bank configuration". So `rules
 **the same rules and templates always give the same bundle bytes** (tested). The policy data is signed and released on its own revision, with its own approval.
 Without `-policy-data` the legacy layout (bindings in the bundle manifest) is unchanged until the PDS loads policy data (plan Task 10 in the PDS repository).
 
+**Approved safe-reason text.** `policy-data/safe-reasons.json` holds the approved text and appeal path `GET_SAFE_REASON` returns (PDS `docs/rules-contract.md`, section 4.4b). `rules-check` refuses an entry with no `approval_ref` or `appeal_ref`, text that carries a rule or markup, and a reason no ruleset or template can return; `rules-gen -policy-data` ships the file as the `safe_reasons` document. The file is empty until the business supplies approved entries: never write text here that nobody approved.
+
 
 ## Pair conformance (PDE architecture document component 11)
 

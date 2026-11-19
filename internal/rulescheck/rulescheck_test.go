@@ -48,7 +48,7 @@ func requireProblem(t *testing.T, got []string, parts ...string) {
 func scratch(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	for _, d := range []string{"rulesets", "contract", "templates"} {
+	for _, d := range []string{"rulesets", "contract", "templates", "policy-data"} {
 		require.NoError(t, os.CopyFS(filepath.Join(root, d), os.DirFS(filepath.Join(repoRoot, d))))
 	}
 	return root
@@ -395,4 +395,89 @@ func editControlReasons(t *testing.T, root string, f func(map[string]any)) {
 	out, err := json.MarshalIndent(m, "", "  ")
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(p, out, 0o600))
+}
+
+// The manifest declares how consequential each profile is (PDE architecture document, sections 27 and 29:
+// the class drives the failure policy and which traces are kept). The PDS reads it from the signed bundle.
+func TestTheRiskClassOfEveryRulesetIsRequiredAndConsistent(t *testing.T) {
+	t.Run("a ruleset with no class", func(t *testing.T) {
+		root := scratch(t)
+		edit(t, root, manifestRel, func(s string) string {
+			return strings.Replace(s, `"path": "bridge_balance_inquiry/v1",
+      "risk_class": "LOW_RISK"`, `"path": "bridge_balance_inquiry/v1"`, 1)
+		})
+		requireProblem(t, problems(t, root), "BRIDGE-BALANCE-INQUIRY@v1", "risk_class", "required")
+	})
+	t.Run("a class the PDS does not know", func(t *testing.T) {
+		root := scratch(t)
+		edit(t, root, manifestRel, replaceAll(`"risk_class": "LOW_RISK"`, `"risk_class": "HIGH"`))
+		requireProblem(t, problems(t, root), "risk_class", `"HIGH"`)
+	})
+	t.Run("versions of one profile that disagree", func(t *testing.T) {
+		root := scratch(t)
+		edit(t, root, manifestRel, func(s string) string {
+			i := strings.LastIndex(s, `"path": "bridge_upi/v7",
+      "risk_class": "CONSEQUENTIAL"`)
+			require.Positive(t, i, "test setup")
+			return s[:i] + strings.Replace(s[i:], `"risk_class": "CONSEQUENTIAL"`, `"risk_class": "STANDARD"`, 1)
+		})
+		requireProblem(t, problems(t, root), "BRIDGE-UPI", "risk_class", "versions")
+	})
+}
+
+// The approved text for GET_SAFE_REASON (PDE architecture document, section 9). The PDS refuses a catalogue with an unapproved entry at
+// load; the gate refuses it before it is ever signed, and checks every entry against the reason registry.
+const safeReasonsRel = "policy-data/safe-reasons.json"
+
+func catalogue(entries string) string {
+	return `{"format":"pde-safe-reasons/v1","entries":[` + entries + `]}`
+}
+
+const approvedEntry = `{"profile":"BRIDGE-UPI","reason":"UPI_GUARDED_LIMIT_EXCEEDED","text":"This payment is above the limit that applies right now.","appeal_ref":"APPEAL-UPI-01","approval_ref":"APPR-2026-0007"}`
+
+func TestAnApprovedSafeReasonCatalogueIsAccepted(t *testing.T) {
+	root := scratch(t)
+	edit(t, root, safeReasonsRel, func(string) string {
+		return catalogue(approvedEntry + `,{"reason":"POLICY_REF_MISMATCH","text":"This request could not be matched to an approved policy.","appeal_ref":"APPEAL-GEN-01","approval_ref":"APPR-2026-0008"}`)
+	})
+	require.Empty(t, problems(t, root), "a registered reason, and one the PDS owns, may both have approved text")
+}
+
+func TestATemplateReasonMayHaveApprovedText(t *testing.T) {
+	root := scratch(t)
+	edit(t, root, safeReasonsRel, func(string) string {
+		return catalogue(`{"reason":"AMOUNT_OVER_LIMIT","text":"This amount is above the limit set for this bank.","appeal_ref":"APPEAL-GEN-02","approval_ref":"APPR-2026-0009"}`)
+	})
+	require.Empty(t, problems(t, root), "a P1 template returns this reason for every profile it is bound to")
+}
+
+func TestEachKindOfSafeReasonDefectIsCaught(t *testing.T) {
+	cases := []struct {
+		name    string
+		content string
+		want    []string
+	}{
+		{"an entry nobody approved", catalogue(strings.Replace(approvedEntry, `"approval_ref":"APPR-2026-0007"`, `"approval_ref":""`, 1)), []string{"safe-reasons", "approval_ref"}},
+		{"an entry with no appeal path", catalogue(strings.Replace(approvedEntry, `"appeal_ref":"APPEAL-UPI-01"`, `"appeal_ref":""`, 1)), []string{"safe-reasons", "appeal_ref"}},
+		{"a reason no ruleset can produce", catalogue(strings.Replace(approvedEntry, `UPI_GUARDED_LIMIT_EXCEEDED`, `NEVER_RETURNED`, 1)), []string{"NEVER_RETURNED", "not a registered reason"}},
+		{"a reason registered for another profile", catalogue(strings.Replace(approvedEntry, `BRIDGE-UPI`, `BRIDGE-BALANCE-INQUIRY`, 1)), []string{"BRIDGE-BALANCE-INQUIRY", "not a registered reason"}},
+		{"rego in the text", catalogue(strings.Replace(approvedEntry, `This payment is above the limit that applies right now.`, `deny if input.facts.amount_inr > 8000`, 1)), []string{"text", "rule"}},
+		{"a text too long to show", catalogue(strings.Replace(approvedEntry, `This payment is above the limit that applies right now.`, strings.Repeat("a", 401), 1)), []string{"text", "400"}},
+		{"the same reason twice", catalogue(approvedEntry + "," + approvedEntry), []string{"twice"}},
+		{"an unknown field", catalogue(strings.Replace(approvedEntry, `"reason"`, `"severity":"HIGH","reason"`, 1)), []string{"safe-reasons", "severity"}},
+		{"a wrong format", strings.Replace(catalogue(approvedEntry), `pde-safe-reasons/v1`, `v2`, 1), []string{"safe-reasons", "format"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := scratch(t)
+			edit(t, root, safeReasonsRel, func(string) string { return tc.content })
+			requireProblem(t, problems(t, root), tc.want...)
+		})
+	}
+}
+
+func TestAMissingCatalogueIsNotAProblem(t *testing.T) {
+	root := scratch(t)
+	require.NoError(t, os.Remove(filepath.Join(root, safeReasonsRel)))
+	require.Empty(t, problems(t, root), "no catalogue means the text per result, which is a valid state")
 }

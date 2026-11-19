@@ -88,6 +88,7 @@ type rulesetEntry struct {
 	Package         string `json:"package"`
 	Path            string `json:"path"`
 	CompatibleSince string `json:"compatible_since,omitempty"`
+	RiskClass       string `json:"risk_class,omitempty"`
 }
 
 type templateEntry struct {
@@ -166,6 +167,9 @@ func Generate(o Options) (Report, error) {
 		if policyFiles, err = splitPolicyData(m, files); err != nil {
 			return Report{}, err
 		}
+		if err := addSafeReasons(o.Root, policyFiles); err != nil {
+			return Report{}, err
+		}
 	}
 	mb, err := marshal(m)
 	if err != nil {
@@ -189,7 +193,21 @@ type policyDataManifest struct {
 	BundleID      string              `json:"bundle_id"`
 	InputContract string              `json:"input_contract"`
 	Bindings      []policyDataBinding `json:"bindings"`
+	// Documents are the permitted policy-data documents: today the approved safe-reason text (policy-data/safe-reasons.json).
+	Documents []policyDataDocument `json:"documents,omitempty"`
 }
+
+type policyDataDocument struct {
+	Name   string `json:"name"`
+	Path   string `json:"path"`
+	Digest string `json:"digest"`
+}
+
+const (
+	safeReasonsSource = "policy-data/safe-reasons.json"
+	safeReasonsName   = "safe_reasons"
+	safeReasonsPath   = "documents/safe_reasons.json"
+)
 
 type policyDataBinding struct {
 	Profile string `json:"profile"`
@@ -540,5 +558,31 @@ func readStrict(path string, v any) error {
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return errors.New("trailing data after the document")
 	}
+	return nil
+}
+
+// addSafeReasons ships the approved safe-reason text, when the repository has any, as a policy-data document. The file is copied
+// byte for byte (the gate has already vetted it, and the PDS vets it again at load) and listed with its digest in the unsigned
+// policy-data manifest. Text is configuration: it never goes into the rule bundle, so a wording change moves the policy data only.
+func addSafeReasons(root string, policyFiles map[string][]byte) error {
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(safeReasonsSource)))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("rulesgen: read %s: %w", safeReasonsSource, err)
+	}
+	var pd policyDataManifest
+	if err := json.Unmarshal(policyFiles["policy-data.manifest.template.json"], &pd); err != nil {
+		return fmt.Errorf("rulesgen: policy-data manifest: %w", err)
+	}
+	sum := sha256.Sum256(raw)
+	pd.Documents = append(pd.Documents, policyDataDocument{Name: safeReasonsName, Path: safeReasonsPath, Digest: "sha256:" + hex.EncodeToString(sum[:])})
+	mb, err := marshal(pd)
+	if err != nil {
+		return err
+	}
+	policyFiles[safeReasonsPath] = raw
+	policyFiles["policy-data.manifest.template.json"] = mb
 	return nil
 }

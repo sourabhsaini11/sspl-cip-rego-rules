@@ -148,3 +148,53 @@ func TestThePolicyDataDirectoryMustDifferFromTheBundleDirectory(t *testing.T) {
 
 	require.Error(t, err)
 }
+
+const safeReasonsFile = `{"format":"pde-safe-reasons/v1","entries":[]}`
+
+func putFile(t *testing.T, root, rel, content string) {
+	t.Helper()
+	p := filepath.Join(root, filepath.FromSlash(rel))
+	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+	require.NoError(t, os.WriteFile(p, []byte(content), 0o600))
+}
+
+func TestTheSafeReasonCatalogueShipsAsAPolicyDataDocument(t *testing.T) {
+	root := miniRoot(t, factsWithAmount)
+	putFile(t, root, "policy-data/safe-reasons.json", safeReasonsFile)
+
+	bundleDir, policyDir, _ := generateWithPolicyData(t, root, upiProfile("R-UPI-TXN-MAX"))
+
+	got, err := os.ReadFile(filepath.Join(policyDir, "documents/safe_reasons.json"))
+	require.NoError(t, err)
+	require.Equal(t, safeReasonsFile, string(got), "the approved text is shipped byte for byte, never rewritten")
+	m := readJSON(t, filepath.Join(policyDir, "policy-data.manifest.template.json"))
+	sum := sha256.Sum256([]byte(safeReasonsFile))
+	require.Equal(t, []any{map[string]any{
+		"name": "safe_reasons", "path": "documents/safe_reasons.json", "digest": "sha256:" + hex.EncodeToString(sum[:]),
+	}}, m["documents"])
+	require.NoDirExists(t, filepath.Join(bundleDir, "documents"), "text is configuration: it never rides in the rule bundle")
+}
+
+func TestWithNoCatalogueFileThePolicyDataListsNoDocument(t *testing.T) {
+	root := miniRoot(t, factsWithAmount)
+
+	_, policyDir, _ := generateWithPolicyData(t, root, upiProfile("R-UPI-TXN-MAX"))
+
+	m := readJSON(t, filepath.Join(policyDir, "policy-data.manifest.template.json"))
+	require.NotContains(t, m, "documents")
+	require.NoDirExists(t, filepath.Join(policyDir, "documents"))
+}
+
+func TestACatalogueOnlyChangeMovesThePolicyDataAndNeverTheBundle(t *testing.T) {
+	prof := upiProfile("R-UPI-TXN-MAX")
+	a := miniRoot(t, factsWithAmount)
+	putFile(t, a, "policy-data/safe-reasons.json", safeReasonsFile)
+	b := miniRoot(t, factsWithAmount)
+	putFile(t, b, "policy-data/safe-reasons.json", `{"format":"pde-safe-reasons/v1","entries":[]} `)
+
+	bundleA, policyA, _ := generateWithPolicyData(t, a, prof)
+	bundleB, policyB, _ := generateWithPolicyData(t, b, prof)
+
+	require.Equal(t, dirDigest(t, bundleA), dirDigest(t, bundleB), "the rules are byte for byte the same")
+	require.NotEqual(t, dirDigest(t, policyA), dirDigest(t, policyB))
+}

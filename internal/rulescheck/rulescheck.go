@@ -73,7 +73,11 @@ type entry struct {
 	Package         string `json:"package"`
 	Path            string `json:"path"`
 	CompatibleSince string `json:"compatible_since"`
+	RiskClass       string `json:"risk_class"`
 }
+
+// riskClasses are the classes the PDS accepts in a signed manifest (PDS docs/rules-contract.md, section 4.5).
+var riskClasses = map[string]bool{"CONSEQUENTIAL": true, "STANDARD": true, "LOW_RISK": true}
 
 type registry struct {
 	RegistryVersion    int        `json:"registry_version"`
@@ -158,6 +162,7 @@ func Check(ctx context.Context, root string) ([]Problem, error) {
 		return nil, err
 	}
 	c.checkStaleTemplates()
+	c.checkSafeReasons()
 	return c.problems, ctx.Err()
 }
 
@@ -319,6 +324,12 @@ func (c *checker) checkManifest(m *manifest) {
 		if e.CompatibleSince != "" && !versionRe.MatchString(e.CompatibleSince) {
 			c.add(manifestRel, "%s: compatible_since %q must look like v4", who, e.CompatibleSince)
 		}
+		switch {
+		case e.RiskClass == "":
+			c.add(manifestRel, "%s: risk_class is required (CONSEQUENTIAL, STANDARD or LOW_RISK)", who)
+		case !riskClasses[e.RiskClass]:
+			c.add(manifestRel, "%s: risk_class %q must be CONSEQUENTIAL, STANDARD or LOW_RISK", who, e.RiskClass)
+		}
 		if paths[e.Path] {
 			c.add(manifestRel, "%s: path %q is used by two rulesets", who, e.Path)
 		}
@@ -326,6 +337,21 @@ func (c *checker) checkManifest(m *manifest) {
 			c.add(manifestRel, "%s: listed twice", who)
 		}
 		paths[e.Path], versions[who] = true, true
+	}
+	// Every version of a profile carries one class: an older version stays loadable, so a class that moves
+	// on the newest version alone would let a request ask for the older, lower-classed one.
+	byProfile := map[string]string{}
+	reported := map[string]bool{}
+	for _, e := range m.Rulesets {
+		if e.RiskClass == "" || !riskClasses[e.RiskClass] {
+			continue
+		}
+		if first, seen := byProfile[e.Profile]; !seen {
+			byProfile[e.Profile] = e.RiskClass
+		} else if first != e.RiskClass && !reported[e.Profile] {
+			reported[e.Profile] = true
+			c.add(manifestRel, "%s: risk_class differs between versions (%s and %s); every version of a profile must carry the same class", e.Profile, first, e.RiskClass)
+		}
 	}
 }
 
