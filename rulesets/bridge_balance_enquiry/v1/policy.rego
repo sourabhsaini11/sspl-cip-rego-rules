@@ -1,36 +1,49 @@
-# Spelling: the rule catalogue (migration 0042) and Core's defaults say BALANCE_ENQUIRY; the
-# catalogue's profile seeds say BALANCE_INQUIRY (see the PDS docs/naming-map.md). This ruleset
-# serves the ENQUIRY spelling; BRIDGE-BALANCE-INQUIRY v1 serves the other. Same behaviour.
+# BRIDGE-BALANCE-ENQUIRY ruleset v1 - BALANCE_ENQUIRY allowed while the customer is under the
+# daily balance-enquiry quota (rule catalogue R-ACC-BAL-DAILY, "5 per calendar day").
 #
-# NOT enforced here: R-ACC-BAL-DAILY (5 per calendar day) and R-ACC-BAL-VELOCITY (3 per minute).
-# The catalogue names the Switch (Core) as their enforcement point, and the PDE holds no per-
-# customer request counter (its live counter is rupees drawn, not a count).
-# BRIDGE-BALANCE-ENQUIRY ruleset v1 - BALANCE_ENQUIRY allowed only with the required
-# authentication factor.
+# The limit arrives in input.values["R-ACC-BAL-DAILY"]: the signed state's parameter, verbatim.
+# input.live.daily_drawn_inr is the customer's count of permitted enquiries today (the contract
+# note on `live` in the PDS docs/rules-contract.md: for this profile the counter is a count, not
+# rupees, and the writer is Core). This request is allowed if count + 1 does not pass the limit.
+# No counter yet (found false) reads as 0.
 #
-# A deliberately small third profile: it exists to show that a new profile is data (a
-# ruleset directory, a fact schema, a manifest entry and registered reasons), not service
-# code. It uses no amounts and no live counter.
+# Not enforced here: R-ACC-BAL-VELOCITY (3 per minute; the PDE keeps no per-minute counter) and
+# R-ACC-READ-DAILY (it governs ACCOUNT_DETAILS and CHEQUE_STATUS, not this operation).
 #
-# Rules carry no data: the factor the bank requires arrives in input.values.
-# Input contract: v1.
-#
-# Fail closed: a decision is produced only on positive proof. A missing
-# required_auth_factor leaves `decision` undefined, which the PDE records as REJECT
-# RULE_UNDEFINED.
+# Rules carry no data. Input contract: v1.
+# Fail closed: a missing or non-whole limit, or a counter that is not a whole number, leaves
+# `decision` undefined, which the PDE records as REJECT RULE_UNDEFINED.
 package cip.pde.bridge_balance_enquiry.v1
+
+whole_number(x) if {
+	is_number(x)
+	x == round(x)
+}
+
+limit_ok if {
+	whole_number(input.values["R-ACC-BAL-DAILY"])
+	input.values["R-ACC-BAL-DAILY"] >= 0
+	whole_number(input.live.daily_drawn_inr)
+	input.live.daily_drawn_inr >= 0
+}
 
 decision := {
 	"allow": true,
-	"reason": "AUTH_FACTOR_ACCEPTED",
+	"reason": "BALANCE_WITHIN_DAILY_QUOTA",
 	"details": {},
 	"obligations": {},
-} if input.facts.auth_factor == input.values.required_auth_factor
+} if {
+	limit_ok
+	input.live.daily_drawn_inr + 1 <= input.values["R-ACC-BAL-DAILY"]
+}
 
 decision := {
 	"allow": false,
-	"reason": "AUTH_FACTOR_NOT_ACCEPTED",
-	"reason_code": "CIP-POL-TRUST",
+	"reason": "BALANCE_DAILY_QUOTA_EXCEEDED",
+	"reason_code": "CIP-POL-LIMIT",
 	"details": {},
 	"obligations": {},
-} if input.facts.auth_factor != input.values.required_auth_factor
+} if {
+	limit_ok
+	input.live.daily_drawn_inr + 1 > input.values["R-ACC-BAL-DAILY"]
+}

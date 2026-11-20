@@ -64,15 +64,15 @@
     },
     {
       "profile": "BRIDGE-BALANCE-ENQUIRY",
-      "reason": "AUTH_FACTOR_ACCEPTED",
+      "reason": "BALANCE_WITHIN_DAILY_QUOTA",
       "verdict": "ALLOW",
       "reason_code": ""
     },
     {
       "profile": "BRIDGE-BALANCE-ENQUIRY",
-      "reason": "AUTH_FACTOR_NOT_ACCEPTED",
+      "reason": "BALANCE_DAILY_QUOTA_EXCEEDED",
       "verdict": "REJECT",
-      "reason_code": "CIP-POL-TRUST"
+      "reason_code": "CIP-POL-LIMIT"
     },
     {
       "profile": "BRIDGE-UPI",
