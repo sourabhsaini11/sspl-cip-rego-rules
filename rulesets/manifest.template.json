@@ -83,6 +83,13 @@
       "risk_class": "CONSEQUENTIAL"
     },
     {
+      "profile": "BRIDGE-BALANCE-ENQUIRY",
+      "version": "v1",
+      "package": "cip.pde.bridge_balance_enquiry.v1",
+      "path": "bridge_balance_enquiry/v1",
+      "risk_class": "LOW_RISK"
+    },
+    {
       "profile": "BRIDGE-BRANCH-BANKING",
       "version": "v2",
       "package": "cip.pde.bridge_branch_banking.v2",

@@ -63,6 +63,18 @@
       "reason_code": "CIP-POL-TRUST"
     },
     {
+      "profile": "BRIDGE-BALANCE-ENQUIRY",
+      "reason": "AUTH_FACTOR_ACCEPTED",
+      "verdict": "ALLOW",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-BALANCE-ENQUIRY",
+      "reason": "AUTH_FACTOR_NOT_ACCEPTED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-TRUST"
+    },
+    {
       "profile": "BRIDGE-UPI",
       "reason": "UPI_DEVICE_RISK",
       "verdict": "STEP_UP",

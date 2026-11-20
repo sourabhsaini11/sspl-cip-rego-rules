@@ -35,7 +35,7 @@ cmd/rules-check/                  the gate, as a command
 internal/rulescheck/              the gate's checks and their tests
 ```
 
-Shipping now: `BRIDGE-UPI v5`, `BRIDGE-AEPS v2`, `BRIDGE-BALANCE-INQUIRY v1`. They began as a copy of the
+Shipping now: `BRIDGE-UPI v5`, `BRIDGE-AEPS v2`, `BRIDGE-BALANCE-INQUIRY v1`, `BRIDGE-BALANCE-ENQUIRY v1`. They began as a copy of the
 PDS's reference rulesets (PDS commit `c2e12d1`, 2026-11-03) and now evolve here.
 
 ## Commands

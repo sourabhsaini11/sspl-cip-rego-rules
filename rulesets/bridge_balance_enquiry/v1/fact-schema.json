@@ -1,0 +1,6 @@
+{
+  "fields": {
+    "auth_factor": {"type": "enum", "required": true, "enum": ["PIN", "OTP", "BIO_FP"]},
+    "channel": {"type": "enum", "required": true, "enum": ["MOBILE", "ATM", "BRANCH"]}
+  }
+}
