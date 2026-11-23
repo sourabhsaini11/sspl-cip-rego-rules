@@ -75,6 +75,18 @@
       "reason_code": "CIP-POL-LIMIT"
     },
     {
+      "profile": "BRIDGE-BALANCE-ENQUIRY-E2E",
+      "reason": "BALANCE_WITHIN_DAILY_QUOTA",
+      "verdict": "ALLOW",
+      "reason_code": ""
+    },
+    {
+      "profile": "BRIDGE-BALANCE-ENQUIRY-E2E",
+      "reason": "BALANCE_DAILY_QUOTA_EXCEEDED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
       "profile": "BRIDGE-UPI",
       "reason": "UPI_DEVICE_RISK",
       "verdict": "STEP_UP",

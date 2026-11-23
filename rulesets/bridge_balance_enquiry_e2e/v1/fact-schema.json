@@ -1,0 +1,5 @@
+{
+  "fields": {
+    "channel": {"type": "string", "required": false}
+  }
+}
