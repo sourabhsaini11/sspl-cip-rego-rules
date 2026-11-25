@@ -107,26 +107,26 @@
       }
     },
     {
-      "name": "night starts at 22:00",
+      "name": "night starts at 17:30",
       "facts": {},
       "values": {
         "R-ACC-BAL-DAILY": 5,
         "R-ACC-READ-DAILY": 10
       },
-      "now": "2026-11-20T22:00:00+05:30",
+      "now": "2026-11-20T17:30:00+05:30",
       "live": {
         "found": true,
         "daily_drawn_inr": 4
       }
     },
     {
-      "name": "day until 21:59",
+      "name": "day until 17:29",
       "facts": {},
       "values": {
         "R-ACC-BAL-DAILY": 5,
         "R-ACC-READ-DAILY": 10
       },
-      "now": "2026-11-20T21:59:00+05:30",
+      "now": "2026-11-20T17:29:00+05:30",
       "live": {
         "found": true,
         "daily_drawn_inr": 4
@@ -169,6 +169,19 @@
       "live": {
         "found": false,
         "daily_drawn_inr": 0
+      }
+    },
+    {
+      "name": "early evening is night",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T19:00:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 4
       }
     }
   ],

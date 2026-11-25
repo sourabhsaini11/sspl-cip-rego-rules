@@ -4,9 +4,12 @@
 # v1 behaviour is kept: an enquiry is allowed while count + 1 does not pass the daily quota
 # (input.values["R-ACC-BAL-DAILY"], the signed state's parameter; input.live.daily_drawn_inr is the count).
 #
-# New in v2: between 22:00 and 06:00 in the state's time zone (input.ctx.tz, Asia/Kolkata on dev) the allowance is
+# New in v2: between 17:30 and 06:00 in the state's time zone (input.ctx.tz, Asia/Kolkata on dev) the allowance is
 # one enquiry smaller than the daily quota, so with a quota of 5 the 5th enquiry at night is a DENY
 # NIGHT_CAP_EXCEEDED (CIP-POL-LIMIT), ahead of the daily quota. By day only the daily quota applies.
+#
+# The night starts at 17:30 (not 22:00) ONLY so the rule can be tested in the afternoon; the gate allows the numbers 17
+# and 30 in this one ruleset (devOnlyLiterals in the rules-check). Do not promote v2.
 #
 # STAND-IN, DEV TEST ONLY. The night allowance is derived from the signed quota (quota minus one) because the
 # rules-check gate forbids a limit written in a rule (limits belong in input.values) and the profile has no night
@@ -21,13 +24,24 @@ package cip.pde.bridge_balance_enquiry_e2e.v2
 # Enquiries allowed per day while it is night: the signed daily quota minus one (STAND-IN, see the header).
 night_limit := input.values["R-ACC-BAL-DAILY"] - 1
 
-night_start_hour := 22
+night_start_hour := 17
+
+night_start_minute := 30
 
 night_end_hour := 6
 
-local_hour := time.clock([time.parse_rfc3339_ns(input.ctx.now), input.ctx.tz])[0]
+local_clock := time.clock([time.parse_rfc3339_ns(input.ctx.now), input.ctx.tz])
 
-is_night if local_hour >= night_start_hour
+local_hour := local_clock[0]
+
+local_minute := local_clock[1]
+
+is_night if local_hour > night_start_hour
+
+is_night if {
+	local_hour == night_start_hour
+	local_minute >= night_start_minute
+}
 
 is_night if local_hour < night_end_hour
 

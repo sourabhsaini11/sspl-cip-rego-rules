@@ -118,11 +118,11 @@ test_the_same_count_by_day_is_the_daily_quota_not_the_night_limit if {
 	e.reason == "BALANCE_DAILY_QUOTA_EXCEEDED"
 }
 
-test_night_starts_at_22_00_and_ends_at_06_00 if {
-	d22 := bal.decision with input as object.union(night(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T22:00:00+05:30"})})
-	not d22.allow
-	d2159 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T21:59:00+05:30"})})
-	d2159.allow
+test_night_starts_at_17_30_and_ends_at_06_00 if {
+	d1730 := bal.decision with input as object.union(night(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T17:30:00+05:30"})})
+	not d1730.allow
+	d1729 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T17:29:00+05:30"})})
+	d1729.allow
 	d0559 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-21T05:59:00+05:30"})})
 	not d0559.allow
 	d0600 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-21T06:00:00+05:30"})})
@@ -150,4 +150,14 @@ test_a_zero_quota_at_night_is_still_a_denial if {
 	zero := object.union(night(0), {"values": {"R-ACC-BAL-DAILY": 0, "R-ACC-READ-DAILY": 10}})
 	d := bal.decision with input as zero
 	not d.allow
+}
+
+test_the_early_evening_is_night_from_17_30_on if {
+	evening := object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T19:00:00+05:30"})})
+	d := bal.decision with input as evening
+	not d.allow
+	d.reason == "NIGHT_CAP_EXCEEDED"
+	afternoon := object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T16:45:00+05:30"})})
+	e := bal.decision with input as afternoon
+	e.allow
 }

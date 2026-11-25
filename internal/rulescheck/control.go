@@ -206,7 +206,7 @@ func (c *checker) checkControlRuleset(ctx context.Context, e controlEntry, reg *
 	if !definesDecision(mod) {
 		c.add(where, "policy.rego defines no decision rule: the Landing Zone reads data.<package>.decision")
 	}
-	c.checkLiterals(where, "policy.rego", mod)
+	c.checkLiterals(where, "policy.rego", mod, "")
 	c.checkControlReasons(where, e, mod, reg)
 	if testErr == nil {
 		c.runRegoTests(ctx, where, policyPath, string(policySrc), testPath, string(testSrc))

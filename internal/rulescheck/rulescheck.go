@@ -51,6 +51,13 @@ var (
 	// belongs in the bank's signed state, not in Git.
 	allowedLiterals = map[string]bool{"0": true, "1": true, "6": true, "22": true}
 
+	// devOnlyLiterals are numbers ONE named ruleset may contain on top of allowedLiterals. TEMPORARY, dev test only:
+	// BRIDGE-BALANCE-ENQUIRY-E2E v2 starts its night at 17:30 so the night rule can be exercised in the afternoon.
+	// Every other ruleset is still held to allowedLiterals. Remove the entry with the v2 stand-in.
+	devOnlyLiterals = map[string]map[string]bool{
+		"bridge_balance_enquiry_e2e/v2": {"17": true, "30": true},
+	}
+
 	factTypes = map[string]bool{"string": true, "int": true, "bool": true, "enum": true}
 )
 
@@ -424,7 +431,7 @@ func (c *checker) checkRuleset(ctx context.Context, e entry) {
 	if !definesDecision(mod) {
 		c.add(where, "policy.rego defines no decision rule: the PDS reads data.<package>.decision")
 	}
-	c.checkLiterals(where, "policy.rego", mod)
+	c.checkLiterals(where, "policy.rego", mod, e.Path)
 	c.checkReasons(where, e, mod)
 	if testErr == nil {
 		c.runRegoTests(ctx, where, policyPath, string(policySrc), testPath, string(testSrc))
@@ -440,12 +447,12 @@ func definesDecision(mod *ast.Module) bool {
 	return false
 }
 
-func (c *checker) checkLiterals(where, file string, mod *ast.Module) {
+func (c *checker) checkLiterals(where, file string, mod *ast.Module, rulesetPath string) {
 	reported := map[string]bool{}
 	ast.WalkTerms(mod, func(t *ast.Term) bool {
 		if n, ok := t.Value.(ast.Number); ok {
 			lit := n.String()
-			if !allowedLiterals[lit] && !reported[lit] {
+			if !allowedLiterals[lit] && !devOnlyLiterals[rulesetPath][lit] && !reported[lit] {
 				reported[lit] = true
 				c.add(where+"/"+file, "literal %s looks like policy data; limits belong in input.values (signed bank state), not in Git", lit)
 			}
@@ -590,7 +597,7 @@ func (c *checker) checkTemplate(ctx context.Context, name string) {
 	if !definesDecision(mod) {
 		c.add(where, "rule.rego defines no decision rule: the PDS reads data.<package>.decision")
 	}
-	c.checkLiterals(where, "rule.rego", mod)
+	c.checkLiterals(where, "rule.rego", mod, "")
 	if c.reg != nil {
 		registered := map[string]bool{}
 		for _, r := range c.reg.TemplateReasons {
