@@ -1,0 +1,176 @@
+{
+  "profile": "BRIDGE-BALANCE-ENQUIRY-E2E",
+  "operation": "BALANCE-ENQUIRY-E2E",
+  "cases": [
+    {
+      "name": "day, first enquiry",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T14:30:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 0
+      }
+    },
+    {
+      "name": "day, fourth enquiry",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T14:30:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 3
+      }
+    },
+    {
+      "name": "day, fifth enquiry, last allowed",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T14:30:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 4
+      }
+    },
+    {
+      "name": "day, sixth enquiry, quota used up",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T14:30:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 5
+      }
+    },
+    {
+      "name": "night, first enquiry",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T23:30:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 0
+      }
+    },
+    {
+      "name": "night, fourth enquiry",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T23:30:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 3
+      }
+    },
+    {
+      "name": "night, fifth enquiry, the night rule stops it",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T23:30:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 4
+      }
+    },
+    {
+      "name": "night, sixth enquiry, quota used up",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T23:30:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 5
+      }
+    },
+    {
+      "name": "night starts at 22:00",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T22:00:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 4
+      }
+    },
+    {
+      "name": "day until 21:59",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T21:59:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 4
+      }
+    },
+    {
+      "name": "night until 05:59",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-21T05:59:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 4
+      }
+    },
+    {
+      "name": "day from 06:00",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-21T06:00:00+05:30",
+      "live": {
+        "found": true,
+        "daily_drawn_inr": 4
+      }
+    },
+    {
+      "name": "no counter yet reads as zero",
+      "facts": {},
+      "values": {
+        "R-ACC-BAL-DAILY": 5,
+        "R-ACC-READ-DAILY": 10
+      },
+      "now": "2026-11-20T23:30:00+05:30",
+      "live": {
+        "found": false,
+        "daily_drawn_inr": 0
+      }
+    }
+  ],
+  "allowed_widening": []
+}

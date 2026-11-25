@@ -87,6 +87,12 @@
       "reason_code": "CIP-POL-LIMIT"
     },
     {
+      "profile": "BRIDGE-BALANCE-ENQUIRY-E2E",
+      "reason": "NIGHT_CAP_EXCEEDED",
+      "verdict": "REJECT",
+      "reason_code": "CIP-POL-LIMIT"
+    },
+    {
       "profile": "BRIDGE-UPI",
       "reason": "UPI_DEVICE_RISK",
       "verdict": "STEP_UP",
