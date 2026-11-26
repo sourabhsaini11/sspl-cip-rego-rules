@@ -46,10 +46,10 @@ var (
 	allowedLiterals = map[string]bool{"0": true, "1": true, "6": true, "22": true}
 
 	// devOnlyLiterals are numbers ONE named ruleset may contain on top of allowedLiterals. TEMPORARY, dev test only:
-	// BRIDGE-BALANCE-ENQUIRY-E2E v2 has its night window at 15:00 to 15:30 so the night rule can be exercised in the afternoon.
+	// BRIDGE-BALANCE-ENQUIRY-E2E v2 has its night window at 15:00 to 15:50 so the night rule can be exercised in the afternoon.
 	// Every other ruleset is still held to allowedLiterals. Remove the entry with the v2 stand-in.
 	devOnlyLiterals = map[string]map[string]bool{
-		"bridge_balance_enquiry_e2e/v2": {"15": true, "30": true},
+		"bridge_balance_enquiry_e2e/v2": {"15": true, "50": true},
 	}
 
 	factTypes = map[string]bool{"string": true, "int": true, "bool": true, "enum": true}

@@ -118,13 +118,13 @@ test_the_same_count_by_day_is_the_daily_quota_not_the_night_limit if {
 	e.reason == "BALANCE_DAILY_QUOTA_EXCEEDED"
 }
 
-test_the_window_is_15_00_to_15_30_start_inclusive_end_exclusive if {
+test_the_window_is_15_00_to_15_50_start_inclusive_end_exclusive if {
 	d1500 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T15:00:00+05:30"})})
 	not d1500.allow
-	d1529 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T15:29:59+05:30"})})
-	not d1529.allow
-	d1530 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T15:30:00+05:30"})})
-	d1530.allow
+	d1549 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T15:49:59+05:30"})})
+	not d1549.allow
+	d1550 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T15:50:00+05:30"})})
+	d1550.allow
 	d1459 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T14:59:59+05:30"})})
 	d1459.allow
 }
