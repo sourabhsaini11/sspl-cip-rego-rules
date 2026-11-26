@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -190,6 +192,10 @@ func readJSON(path string, v any, strict bool) error {
 	}
 	if err := dec.Decode(v); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
+	}
+	// A Decoder reads the first value and stops: refuse anything after it, as json.Unmarshal does (SSPL-NFR SEC-09).
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return fmt.Errorf("%s: trailing data after the JSON document", path)
 	}
 	return nil
 }

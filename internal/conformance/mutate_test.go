@@ -193,3 +193,14 @@ func TestMutateRepoOnlyRefusesAnUnknownRuleset(t *testing.T) {
 	_, err := conformance.MutateRepoOnly(context.Background(), "../..", "BRIDGE-NOPE v9")
 	require.ErrorContains(t, err, "BRIDGE-NOPE v9")
 }
+
+func TestAFileWithDataAfterItsJSONDocumentIsRefused(t *testing.T) {
+	root := scratchRoot(t, `package cip.pde.demo.v1_test
+`)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "conformance"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, conformance.AcceptedFile), []byte("{\"accepted\":[]}\n{\"smuggled\":true}\n"), 0o600))
+
+	_, err := conformance.MutateRepo(context.Background(), root)
+
+	require.ErrorContains(t, err, "trailing data")
+}
