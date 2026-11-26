@@ -5,11 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/sspl/sspl-cip-rego-rules/internal/safefs"
 )
 
 // A policy proposal is how a reviewed ruleset version reaches the Landing Zone's Policy Governance
@@ -93,8 +94,12 @@ func Proposals(o ProposalOptions) ([]Proposal, error) {
 // shipped file as "name NUL sha256(file)", in name order.
 func rulesetDigest(root string, r rulesetEntry) (string, error) {
 	h := sha256.New()
+	dir, err := safefs.Join(filepath.Join(root, "rulesets"), r.Path)
+	if err != nil {
+		return "", fmt.Errorf("rulesgen: %w", err)
+	}
 	for _, name := range []string{"fact-schema.json", "policy.rego"} { // name order
-		b, err := os.ReadFile(filepath.Join(root, "rulesets", filepath.FromSlash(r.Path), name))
+		b, err := safefs.ReadFile(filepath.Join(dir, name))
 		if err != nil {
 			return "", fmt.Errorf("rulesgen: %w", err)
 		}

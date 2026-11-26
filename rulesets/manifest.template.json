@@ -97,6 +97,13 @@
       "risk_class": "LOW_RISK"
     },
     {
+      "profile": "BRIDGE-BALANCE-ENQUIRY-E2E",
+      "version": "v2",
+      "package": "cip.pde.bridge_balance_enquiry_e2e.v2",
+      "path": "bridge_balance_enquiry_e2e/v2",
+      "risk_class": "LOW_RISK"
+    },
+    {
       "profile": "BRIDGE-BRANCH-BANKING",
       "version": "v2",
       "package": "cip.pde.bridge_branch_banking.v2",

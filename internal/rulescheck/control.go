@@ -3,7 +3,6 @@ package rulescheck
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
+
+	"github.com/sspl/sspl-cip-rego-rules/internal/safefs"
 )
 
 // The control-plane rules (PDE architecture document component 2 and Journey 8; docs/rules-contract.md in the PDS,
@@ -91,7 +92,7 @@ func CheckControl(ctx context.Context, root string) ([]Problem, error) {
 }
 
 func (c *checker) loadControlRegistry() *controlRegistry {
-	raw, err := os.ReadFile(filepath.Join(c.root, controlReasonsRel))
+	raw, err := safefs.ReadFile(filepath.Join(c.root, controlReasonsRel))
 	if err != nil {
 		c.add(controlReasonsRel, "cannot read control-reasons.json: %v", err)
 		return nil
@@ -118,7 +119,7 @@ func (c *checker) loadControlRegistry() *controlRegistry {
 }
 
 func (c *checker) loadControlManifest() *controlManifest {
-	raw, err := os.ReadFile(filepath.Join(c.root, controlManifestRel))
+	raw, err := safefs.ReadFile(filepath.Join(c.root, controlManifestRel))
 	if err != nil {
 		c.add(controlManifestRel, "cannot read the control manifest: %v", err)
 		return nil
@@ -183,15 +184,19 @@ func (c *checker) checkControlManifest(m *controlManifest, reg *controlRegistry)
 
 func (c *checker) checkControlRuleset(ctx context.Context, e controlEntry, reg *controlRegistry) {
 	where := controlRulesetsDirRel + "/" + e.Path
-	dir := filepath.Join(c.root, controlRulesetsDirRel, filepath.FromSlash(e.Path))
-	policyPath, testPath, examplesPath := filepath.Join(dir, "policy.rego"), filepath.Join(dir, "policy_test.rego"), filepath.Join(dir, controlExamplesFile)
-
-	policySrc, err := os.ReadFile(policyPath)
+	dir, err := safefs.Join(filepath.Join(c.root, controlRulesetsDirRel), e.Path)
 	if err != nil {
-		c.add(where, "missing policy.rego")
+		c.add(where, "path %q is not inside %s/", e.Path, controlRulesetsDirRel)
 		return
 	}
-	testSrc, testErr := os.ReadFile(testPath)
+	policyPath, testPath, examplesPath := filepath.Join(dir, "policy.rego"), filepath.Join(dir, "policy_test.rego"), filepath.Join(dir, controlExamplesFile)
+
+	policySrc, err := safefs.ReadFile(policyPath)
+	if err != nil {
+		c.add(where, "%s", unreadable("policy.rego", err))
+		return
+	}
+	testSrc, testErr := safefs.ReadFile(testPath)
 	if testErr != nil {
 		c.add(where, "missing policy_test.rego: a ruleset without tests is not shippable")
 	}
@@ -206,7 +211,7 @@ func (c *checker) checkControlRuleset(ctx context.Context, e controlEntry, reg *
 	if !definesDecision(mod) {
 		c.add(where, "policy.rego defines no decision rule: the Landing Zone reads data.<package>.decision")
 	}
-	c.checkLiterals(where, "policy.rego", mod)
+	c.checkLiterals(where, "policy.rego", mod, "")
 	c.checkControlReasons(where, e, mod, reg)
 	if testErr == nil {
 		c.runRegoTests(ctx, where, policyPath, string(policySrc), testPath, string(testSrc))
@@ -271,7 +276,7 @@ func (c *checker) checkControlReasons(where string, e controlEntry, mod *ast.Mod
 // defined, carry only the registered output keys (so nothing can read as an approval), and use only registered reasons
 // and rule references.
 func (c *checker) checkControlExamples(ctx context.Context, where string, e controlEntry, policyPath, policySrc, examplesPath string, reg *controlRegistry) {
-	raw, err := os.ReadFile(examplesPath)
+	raw, err := safefs.ReadFile(examplesPath)
 	if err != nil {
 		c.add(where, "missing %s: a control ruleset ships examples the gate evaluates", controlExamplesFile)
 		return

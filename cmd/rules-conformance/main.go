@@ -11,6 +11,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/sspl/sspl-cip-rego-rules/internal/conformance"
 )
@@ -24,7 +26,9 @@ func main() {
 	if len(os.Args) > 2 {
 		root = os.Args[2]
 	}
-	ok, err := run(context.Background(), os.Args[1], root)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	ok, err := run(ctx, os.Args[1], root)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "rules-conformance:", err)
 		os.Exit(1)

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/sspl/sspl-cip-rego-rules/internal/rulescheck"
+	"github.com/sspl/sspl-cip-rego-rules/internal/safefs"
 )
 
 const repoRoot = "../.."
@@ -568,4 +569,64 @@ func TestADisagreementBetweenTheRegistryAndTheManifestAboutTenancyIsCaught(t *te
 			requireProblem(t, problems(t, root), tc.want...)
 		})
 	}
+}
+
+const e2eV2Policy = "rulesets/bridge_balance_enquiry_e2e/v2/policy.rego"
+
+// The 17:30 night start of BRIDGE-BALANCE-ENQUIRY-E2E v2 is a named, temporary exemption: 17 and 30 are allowed in
+// that one ruleset, nothing else is, and no other ruleset gains them.
+func TestTheDevOnlyLiteralExemptionIsNarrow(t *testing.T) {
+	// another number in the exempt ruleset is still a limit
+	root := scratch(t)
+	edit(t, root, e2eV2Policy, func(s string) string { return s + "\nextra_cap := 18\n" })
+	requireProblem(t, problems(t, root), "literal 18")
+
+	// 17 and 30 are fine in the exempt ruleset (v2 itself uses them)
+	root = scratch(t)
+	edit(t, root, e2eV2Policy, func(s string) string { return s + "\nsame_start := 17\nsame_minute := 30\n" })
+	for _, p := range problems(t, root) {
+		require.NotContains(t, p, "literal 17")
+		require.NotContains(t, p, "literal 30")
+	}
+
+	// but 17 in any other ruleset is still refused
+	root = scratch(t)
+	edit(t, root, upiPolicy, func(s string) string { return s + "\nafternoon_cap := 17\n" })
+	requireProblem(t, problems(t, root), "literal 17")
+}
+
+func TestAManifestPathThatLeavesTheRulesetsDirectoryIsReportedAndNeverRead(t *testing.T) {
+	root := scratch(t)
+	edit(t, root, "rulesets/manifest.template.json", replaceAll(`"path": "bridge_upi/v5"`, `"path": "../contract"`))
+
+	got := problems(t, root)
+
+	requireProblem(t, got, "must be a relative path inside rulesets/")
+	requireProblem(t, got, "is not inside rulesets/")
+}
+
+func TestARulesetFileOverTheSizeLimitIsReportedAsUnreadableNotAsMissing(t *testing.T) {
+	root := scratch(t)
+	big := make([]byte, safefs.MaxFileBytes+1)
+	require.NoError(t, os.WriteFile(filepath.Join(root, upiPolicy), big, 0o600))
+
+	got := problems(t, root)
+
+	requireProblem(t, got, "cannot read policy.rego", "limit")
+	for _, g := range got {
+		require.NotContains(t, g, "missing policy.rego", "an oversized file is not a missing one")
+	}
+}
+
+func TestASymbolicLinkInPlaceOfARulesetFileIsRefused(t *testing.T) {
+	root := scratch(t)
+	link := filepath.Join(root, upiPolicy)
+	require.NoError(t, os.Remove(link))
+	target, err := filepath.Abs(filepath.Join(repoRoot, upiPolicy))
+	require.NoError(t, err)
+	if err := os.Symlink(target, link); err != nil {
+		t.Skip("symlinks are not available here: " + err.Error())
+	}
+
+	requireProblem(t, problems(t, root), "cannot read policy.rego", "symbolic link")
 }

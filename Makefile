@@ -1,4 +1,4 @@
-.PHONY: check test lint fmt vet mutate compat conformance vuln promote-check pairtest
+.PHONY: check test lint fmt vet mutate compat conformance vuln promote-check pairtest fuzz
 
 ## check: the pipeline gate. Exit 0 only if the rules may be signed and shipped.
 check:
@@ -34,6 +34,12 @@ vuln:
 ## pairtest: the pair conformance gate (configuration and policy tested together); writes the TESTPACK- record pds-release requires
 pairtest:
 	go run ./cmd/rules-pairtest -spec conformance/pairs/bridge_upi_v7.json -out build/testpack-upi-v7.json
+
+## fuzz: 20 s per parser target; a crashing input is saved under testdata/fuzz and must be committed with its fix (SSPL-NFR 15.2)
+fuzz:
+	go test -run='^$$' -fuzz='^FuzzReadJSON$$' -fuzztime=20s ./internal/conformance/
+	go test -run='^$$' -fuzz='^FuzzReadStrict$$' -fuzztime=20s ./internal/rulesgen/
+	go test -run='^$$' -fuzz='^FuzzJoinNeverLeavesItsRoot$$' -fuzztime=20s ./internal/safefs/
 
 ## promote-check: everything a ruleset must pass before it may be signed and promoted
 promote-check: check test lint conformance pairtest vuln

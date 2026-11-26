@@ -192,3 +192,21 @@ func TestWriteRecordWritesAPassAndRefusesAFail(t *testing.T) {
 	require.Error(t, pairtest.WriteRecord(out2, fail))
 	require.NoFileExists(t, out2)
 }
+
+func TestAFailedRecordWriteSaysWhichStepFailedAndLeavesNoTempFile(t *testing.T) {
+	pass := run(t, filepath.Join(repoRoot, specRel))
+
+	// The target is a directory, so the final rename fails after the temp file was written.
+	dir := t.TempDir()
+	target := filepath.Join(dir, "testpack.json")
+	require.NoError(t, os.Mkdir(target, 0o750))
+	err := pairtest.WriteRecord(target, pass)
+	require.ErrorContains(t, err, "publish the record")
+	require.NoFileExists(t, target+".tmp", "a failed write must not leave its temp file behind")
+
+	// The parent is a file, so the directory cannot be created.
+	file := filepath.Join(dir, "a-file")
+	require.NoError(t, os.WriteFile(file, []byte("x"), 0o600))
+	err = pairtest.WriteRecord(filepath.Join(file, "sub", "testpack.json"), pass)
+	require.ErrorContains(t, err, "create the record directory")
+}

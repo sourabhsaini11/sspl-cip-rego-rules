@@ -16,6 +16,7 @@ may be signed and shipped. Start with `README.md`, then the contract:
 make check    # the gate
 make test     # go test -race ./... (each kind of defect must be caught; the real rules must pass)
 make lint     # golangci-lint (gofumpt)
+make fuzz     # 20 s per parser target (the seeds also run in make test)
 ```
 
 ## Rules of the road

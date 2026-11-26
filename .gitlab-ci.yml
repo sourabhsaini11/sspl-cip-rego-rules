@@ -5,6 +5,11 @@
 # includes. Align it with those components when the project is created (job names and stages are
 # stable; only the image and runner tags are likely to change).
 #
+# One definition of "ready": `make promote-check` is check + test + lint + conformance (mutate, compat)
+# + pairtest + vuln. The jobs below are those targets run in parallel, plus module verification
+# (go mod verify, go vet, a trimpath build; SSPL-NFR 15.2 and BUILD-01). If you add a target to
+# promote-check, add its job here.
+#
 # What each stage proves (PDE architecture document, sections 28, 33 and 34):
 #   gate         the rules follow the contract: reasons registered, no data in rules, tests pass
 #   conformance  every rule change is noticed by a test (mutation) and a newer version never
@@ -26,7 +31,9 @@ workflow:
     - when: never
 
 default:
-  image: golang:1.26.11
+  # Pinned by digest (SSPL-NFR BUILD-01). golang:1.26.11 matches `toolchain go1.26.11`; GOTOOLCHAIN=local makes a mismatch fail.
+  # To refresh: read the new digest from the registry, change tag and digest together and run `make promote-check`.
+  image: golang:1.26.11@sha256:6e59e17a20f13c102e49d82dffab66d41cffe6c266b225d82794328aea859ab5
   cache:
     key: go-mod
     paths:
@@ -35,6 +42,13 @@ variables:
   GOPATH: $CI_PROJECT_DIR/.go
   GOFLAGS: -mod=readonly
   GOTOOLCHAIN: local
+
+module-verify:
+  stage: gate
+  script:
+    - go mod verify
+    - go vet ./...
+    - go build -trimpath ./...
 
 rules-check:
   stage: gate
@@ -52,15 +66,24 @@ lint:
 
 mutation:
   stage: conformance
-  script: [make mutate]
+  # One run: the report is written to the artifact and printed, and the job keeps the command's own exit status (the suite is
+  # not run a second time, and no `|| true` hides a failure).
+  script:
+    - go run ./cmd/rules-conformance mutate > mutation-report.md; status=$?; cat mutation-report.md; exit $status
   artifacts:
     when: always
     paths: [mutation-report.md]
-  after_script: ["go run ./cmd/rules-conformance mutate > mutation-report.md || true"]
 
 compat:
   stage: conformance
   script: [make compat]
+
+pairtest:
+  stage: conformance
+  script: [make pairtest]
+  artifacts:
+    paths: [build/testpack-upi-v7.json]
+    expire_in: 90 days
 
 vulnerabilities:
   stage: security

@@ -35,7 +35,8 @@ cmd/rules-check/                  the gate, as a command
 internal/rulescheck/              the gate's checks and their tests
 ```
 
-Shipping now: `BRIDGE-UPI v5`, `BRIDGE-AEPS v2`, `BRIDGE-BALANCE-INQUIRY v1`, `BRIDGE-BALANCE-ENQUIRY v1`. They began as a copy of the
+Shipping now: the 15 ruleset versions across 10 profiles listed in `rulesets/manifest.template.json` (the manifest is the source of truth,
+not this paragraph). They began as a copy of the
 PDS's reference rulesets (PDS commit `c2e12d1`, 2026-11-03) and now evolve here.
 
 ## Commands
@@ -74,6 +75,15 @@ gate compiles with the same OPA as the PDS, so a rule that passes here compiles 
 Owners and details are in the PDS's `docs/bundle-publishing.md`: the KMI bundle key, the canonical bytes the
 MAC covers (DEP-05), where revision numbers come from, how the signed bundle reaches every PDS instance, and
 which tool signs in the pipeline. This repository's GitLab pipeline is to be added by cloud devops.
+
+**Where this repository stops (SSPL-NFR BUILD-04, DEP-09).** It produces reviewed, unsigned rules and the evidence that they may ship: the gate
+(`make check`), the mutation and N/N-1 results (`make conformance`), the pair-gate test pack (`make pairtest`, `build/testpack-*.json`) and one
+policy proposal per ruleset version (`rules-gen -proposals`). It does not sign, assign a revision or stamp `git_commit`: the
+manifest template keeps its placeholder on purpose, and the signing step (today the PDS's dev tooling, `pds-devtools sign-bundle -revision
+YYYY.MM.DD-N`, with the KMI) stamps the revision, the commit and the MAC. There is no code in the shipped artefact (Rego and JSON), so a
+software bill of materials would describe only this repository's own gate tooling, which is never shipped; the PDS builds its SBOM
+(`make sbom` there). Rollback is never an edit: publish the old content under a new, higher revision (PDS `docs/bundle-publishing.md`). Still open,
+with the owners named in that document: who signs in the pipeline, where revision numbers come from, and the KMI key.
 
 ## Templates and bindings (the second rule source)
 
@@ -145,13 +155,13 @@ a reason, or one for a profile not in the manifest, fails the gate.
 ## Conformance and promotion (PDE architecture document, component 11 and section 33)
 
 `make conformance` runs the two checks the repository owns; `make promote-check` runs everything a ruleset must pass before
-it may be signed and promoted (the gate, the tests, lint, conformance, and a vulnerability scan).
+it may be signed and promoted (the gate, the tests, lint, conformance, the pair gate `make pairtest`, and a vulnerability scan).
 
 - **Mutation (`make mutate`).** Each ruleset is mutated one change at a time (a comparison turned over, a `+` turned into a `-`, a
   result turned into `PERMIT`, a dropped `not`, a flipped boolean) and its own Rego tests must fail on every mutant. A mutant that
   survives is a rule the tests do not pin down. When one is genuinely equivalent to the original, a reviewer lists it in
-  `conformance/accepted-mutants.json` with the reason; a listing that no longer matches anything fails as stale. All ten
-  rulesets kill every mutant today; writing the mutation check found, and the added tests now cover, among others a revoked
+  `conformance/accepted-mutants.json` with the reason; a listing that no longer matches anything fails as stale. Every ruleset version in the manifest
+  kills every mutant today, so the file does not exist yet; writing the mutation check found, and the added tests now cover, among others a revoked
   device asking for a balance and the result and class of several denials that were asserted only by reason.
 - **N and N-1 (`make compat`).** Each profile with two or more versions has a corpus in `conformance/compat/<profile>.json`. The
   adjacent versions answer the same inputs and a newer version may be stricter but not more permissive: any widening must be listed

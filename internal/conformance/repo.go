@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/sspl/sspl-cip-rego-rules/internal/safefs"
 )
 
 // AcceptedFile is conformance/accepted-mutants.json: mutants a reviewer judged equivalent to the
@@ -87,10 +91,18 @@ func MutateRepoOnly(ctx context.Context, root, only string) (Report, error) {
 	type target struct{ name, dir string }
 	var targets []target
 	for _, e := range m.Rulesets {
-		targets = append(targets, target{e.Profile + " " + e.Version, filepath.Join(root, "rulesets", filepath.FromSlash(e.Path))})
+		dir, err := safefs.Join(filepath.Join(root, "rulesets"), e.Path)
+		if err != nil {
+			return Report{}, fmt.Errorf("conformance: ruleset %s %s: %w", e.Profile, e.Version, err)
+		}
+		targets = append(targets, target{e.Profile + " " + e.Version, dir})
 	}
 	for _, e := range cm.Rulesets {
-		targets = append(targets, target{"CONTROL " + e.Name + " " + e.Version, filepath.Join(root, "control", filepath.FromSlash(e.Path))})
+		dir, err := safefs.Join(filepath.Join(root, "control"), e.Path)
+		if err != nil {
+			return Report{}, fmt.Errorf("conformance: control ruleset %s %s: %w", e.Name, e.Version, err)
+		}
+		targets = append(targets, target{"CONTROL " + e.Name + " " + e.Version, dir})
 	}
 	if only != "" {
 		kept := targets[:0:0]
@@ -127,11 +139,11 @@ func MutateRepoOnly(ctx context.Context, root, only string) (Report, error) {
 	var rep Report
 	for _, tg := range targets {
 		dir := tg.dir
-		pol, err := os.ReadFile(filepath.Join(dir, "policy.rego"))
+		pol, err := safefs.ReadFile(filepath.Join(dir, "policy.rego"))
 		if err != nil {
 			return Report{}, err
 		}
-		tst, err := os.ReadFile(filepath.Join(dir, "policy_test.rego"))
+		tst, err := safefs.ReadFile(filepath.Join(dir, "policy_test.rego"))
 		if err != nil {
 			return Report{}, err
 		}
@@ -170,7 +182,7 @@ func matchAccepted(list []Accepted, m Mutant) int {
 }
 
 func readJSON(path string, v any, strict bool) error {
-	raw, err := os.ReadFile(path)
+	raw, err := safefs.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -180,6 +192,10 @@ func readJSON(path string, v any, strict bool) error {
 	}
 	if err := dec.Decode(v); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
+	}
+	// A Decoder reads the first value and stops: refuse anything after it, as json.Unmarshal does (SSPL-NFR SEC-09).
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return fmt.Errorf("%s: trailing data after the JSON document", path)
 	}
 	return nil
 }
