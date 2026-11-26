@@ -5,6 +5,11 @@
 # includes. Align it with those components when the project is created (job names and stages are
 # stable; only the image and runner tags are likely to change).
 #
+# One definition of "ready": `make promote-check` is check + test + lint + conformance (mutate, compat)
+# + pairtest + vuln. The jobs below are those targets run in parallel, plus module verification
+# (go mod verify, go vet, a trimpath build; SSPL-NFR 15.2 and BUILD-01). If you add a target to
+# promote-check, add its job here.
+#
 # What each stage proves (PDE architecture document, sections 28, 33 and 34):
 #   gate         the rules follow the contract: reasons registered, no data in rules, tests pass
 #   conformance  every rule change is noticed by a test (mutation) and a newer version never
@@ -36,6 +41,13 @@ variables:
   GOFLAGS: -mod=readonly
   GOTOOLCHAIN: local
 
+module-verify:
+  stage: gate
+  script:
+    - go mod verify
+    - go vet ./...
+    - go build -trimpath ./...
+
 rules-check:
   stage: gate
   script: [make check]
@@ -61,6 +73,13 @@ mutation:
 compat:
   stage: conformance
   script: [make compat]
+
+pairtest:
+  stage: conformance
+  script: [make pairtest]
+  artifacts:
+    paths: [build/testpack-upi-v7.json]
+    expire_in: 90 days
 
 vulnerabilities:
   stage: security
