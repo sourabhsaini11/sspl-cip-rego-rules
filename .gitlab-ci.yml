@@ -31,7 +31,9 @@ workflow:
     - when: never
 
 default:
-  image: golang:1.26.11
+  # Pinned by digest (SSPL-NFR BUILD-01). golang:1.26.11 matches `toolchain go1.26.11`; GOTOOLCHAIN=local makes a mismatch fail.
+  # To refresh: read the new digest from the registry, change tag and digest together and run `make promote-check`.
+  image: golang:1.26.11@sha256:6e59e17a20f13c102e49d82dffab66d41cffe6c266b225d82794328aea859ab5
   cache:
     key: go-mod
     paths:

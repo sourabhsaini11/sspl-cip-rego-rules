@@ -76,6 +76,15 @@ Owners and details are in the PDS's `docs/bundle-publishing.md`: the KMI bundle 
 MAC covers (DEP-05), where revision numbers come from, how the signed bundle reaches every PDS instance, and
 which tool signs in the pipeline. This repository's GitLab pipeline is to be added by cloud devops.
 
+**Where this repository stops (SSPL-NFR BUILD-04, DEP-09).** It produces reviewed, unsigned rules and the evidence that they may ship: the gate
+(`make check`), the mutation and N/N-1 results (`make conformance`), the pair-gate test pack (`make pairtest`, `build/testpack-*.json`) and one
+policy proposal per ruleset version (`rules-gen -proposals`). It does not sign, assign a revision or stamp `git_commit`: the
+manifest template keeps its placeholder on purpose, and the signing step (today the PDS's dev tooling, `pds-devtools sign-bundle -revision
+YYYY.MM.DD-N`, with the KMI) stamps the revision, the commit and the MAC. There is no code in the shipped artefact (Rego and JSON), so a
+software bill of materials would describe only this repository's own gate tooling, which is never shipped; the PDS builds its SBOM
+(`make sbom` there). Rollback is never an edit: publish the old content under a new, higher revision (PDS `docs/bundle-publishing.md`). Still open,
+with the owners named in that document: who signs in the pipeline, where revision numbers come from, and the KMI key.
+
 ## Templates and bindings (the second rule source)
 
 Besides the hand-written rulesets (P0), the bundle can carry reviewed **templates** (P1), one per catalogue
