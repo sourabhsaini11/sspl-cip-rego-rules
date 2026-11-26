@@ -295,16 +295,21 @@ func WriteRecord(path string, res Result) error {
 	}
 	b, err := json.MarshalIndent(res.Record, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("pairtest: encode the testpack record: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+		return fmt.Errorf("pairtest: create the record directory: %w", err)
 	}
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil {
-		return err
+		_ = os.Remove(tmp) // a half-written temp file must not be left beside the record
+		return fmt.Errorf("pairtest: write the record: %w", err)
 	}
-	return os.Rename(tmp, path)
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("pairtest: publish the record: %w", err)
+	}
+	return nil
 }
 
 func configInput(spec Spec, c ConfigCase, now time.Time) map[string]any {
