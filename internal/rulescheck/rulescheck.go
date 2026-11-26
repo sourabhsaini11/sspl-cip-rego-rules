@@ -24,6 +24,8 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
 	"github.com/open-policy-agent/opa/v1/tester"
+
+	"github.com/sspl/sspl-cip-rego-rules/internal/safefs"
 )
 
 // SupportedInputContract is the input-contract version these rules are written for. The PDS
@@ -180,7 +182,7 @@ func Check(ctx context.Context, root string) ([]Problem, error) {
 // ---- registry ---------------------------------------------------------------------------
 
 func (c *checker) loadRegistry() {
-	raw, err := os.ReadFile(filepath.Join(c.root, reasonsRel))
+	raw, err := safefs.ReadFile(filepath.Join(c.root, reasonsRel))
 	if err != nil {
 		c.add(reasonsRel, "cannot read the reason registry: %v", err)
 		return
@@ -287,7 +289,7 @@ func (c *checker) checkVerdict(who, verdict, code string) {
 // ---- manifest ---------------------------------------------------------------------------
 
 func (c *checker) loadManifest() *manifest {
-	raw, err := os.ReadFile(filepath.Join(c.root, manifestRel))
+	raw, err := safefs.ReadFile(filepath.Join(c.root, manifestRel))
 	if err != nil {
 		c.add(manifestRel, "cannot read the manifest: %v", err)
 		return nil
@@ -404,17 +406,30 @@ func (c *checker) checkOrphans(m *manifest) {
 
 // ---- one ruleset ------------------------------------------------------------------------
 
+// unreadable says why a required file could not be used: "missing" when it is not there, otherwise the reason (too large, a
+// symbolic link, not a regular file), so a refused file is not reported as an absent one.
+func unreadable(name string, err error) string {
+	if errors.Is(err, os.ErrNotExist) {
+		return "missing " + name
+	}
+	return fmt.Sprintf("cannot read %s: %v", name, err)
+}
+
 func (c *checker) checkRuleset(ctx context.Context, e entry) {
 	where := "rulesets/" + e.Path
-	dir := filepath.Join(c.root, "rulesets", filepath.FromSlash(e.Path))
-	policyPath, testPath, schemaPath := filepath.Join(dir, "policy.rego"), filepath.Join(dir, "policy_test.rego"), filepath.Join(dir, "fact-schema.json")
-
-	policySrc, err := os.ReadFile(policyPath)
+	dir, err := safefs.Join(filepath.Join(c.root, "rulesets"), e.Path)
 	if err != nil {
-		c.add(where, "missing policy.rego")
+		c.add(where, "path %q is not inside rulesets/", e.Path)
 		return
 	}
-	testSrc, testErr := os.ReadFile(testPath)
+	policyPath, testPath, schemaPath := filepath.Join(dir, "policy.rego"), filepath.Join(dir, "policy_test.rego"), filepath.Join(dir, "fact-schema.json")
+
+	policySrc, err := safefs.ReadFile(policyPath)
+	if err != nil {
+		c.add(where, "%s", unreadable("policy.rego", err))
+		return
+	}
+	testSrc, testErr := safefs.ReadFile(testPath)
 	if testErr != nil {
 		c.add(where, "missing policy_test.rego: a ruleset without tests is not shippable")
 	}
@@ -488,7 +503,11 @@ func (c *checker) checkReasons(where string, e entry, mod *ast.Module) {
 
 // enumValues returns every enum value the ruleset's fact schema declares.
 func (c *checker) enumValues(e entry) []string {
-	raw, err := os.ReadFile(filepath.Join(c.root, "rulesets", filepath.FromSlash(e.Path), "fact-schema.json"))
+	dir, err := safefs.Join(filepath.Join(c.root, "rulesets"), e.Path)
+	if err != nil {
+		return nil
+	}
+	raw, err := safefs.ReadFile(filepath.Join(dir, "fact-schema.json"))
 	if err != nil {
 		return nil
 	}
@@ -577,12 +596,12 @@ func (c *checker) checkTemplate(ctx context.Context, name string) {
 
 	c.checkTemplateMeta(where, ruleType, filepath.Join(dir, "template.json"))
 
-	src, err := os.ReadFile(rulePath)
+	src, err := safefs.ReadFile(rulePath)
 	if err != nil {
 		c.add(where, "missing rule.rego")
 		return
 	}
-	testSrc, testErr := os.ReadFile(testPath)
+	testSrc, testErr := safefs.ReadFile(testPath)
 	if testErr != nil {
 		c.add(where, "missing rule_test.rego: a template without tests is not shippable")
 	}
@@ -619,7 +638,7 @@ func templatePackageFor(ruleType string) string {
 }
 
 func (c *checker) checkTemplateMeta(where, ruleType, path string) {
-	raw, err := os.ReadFile(path)
+	raw, err := safefs.ReadFile(path)
 	if err != nil {
 		c.add(where, "missing template.json: it says which facts the template reads")
 		return
@@ -693,7 +712,7 @@ var maxAgeKeyRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 // one field, a known type, enum values only on enum fields, and the provenance keys (a fact that needs
 // a source, and the configuration key that bounds its age).
 func (c *checker) checkFactSchema(where, path string) {
-	raw, err := os.ReadFile(path)
+	raw, err := safefs.ReadFile(path)
 	if err != nil {
 		c.add(where, "missing fact-schema.json: the PDS refuses a ruleset without one")
 		return

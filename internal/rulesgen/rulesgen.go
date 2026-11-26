@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/sspl/sspl-cip-rego-rules/internal/safefs"
 )
 
 // Options names the inputs of one generation.
@@ -457,7 +459,11 @@ func readTemplates(root string) (map[string]templateMeta, error) {
 
 func readSchema(root string, rs rulesetEntry) (factSchema, error) {
 	var s factSchema
-	if err := readJSON(filepath.Join(root, "rulesets", filepath.FromSlash(rs.Path), "fact-schema.json"), &s); err != nil {
+	dir, err := safefs.Join(filepath.Join(root, "rulesets"), rs.Path)
+	if err != nil {
+		return s, fmt.Errorf("rulesgen: ruleset %s %s: %w", rs.Profile, rs.Version, err)
+	}
+	if err := readJSON(filepath.Join(dir, "fact-schema.json"), &s); err != nil {
 		return s, fmt.Errorf("rulesgen: ruleset %s %s: %w", rs.Profile, rs.Version, err)
 	}
 	return s, nil
@@ -467,8 +473,12 @@ func readSchema(root string, rs rulesetEntry) (factSchema, error) {
 
 func stageRulesets(root string, m *manifestFile, files map[string][]byte) error {
 	for _, r := range m.Rulesets {
+		dir, err := safefs.Join(filepath.Join(root, "rulesets"), r.Path)
+		if err != nil {
+			return fmt.Errorf("rulesgen: %w", err)
+		}
 		for _, name := range []string{"policy.rego", "fact-schema.json"} {
-			b, err := os.ReadFile(filepath.Join(root, "rulesets", filepath.FromSlash(r.Path), name))
+			b, err := safefs.ReadFile(filepath.Join(dir, name))
 			if err != nil {
 				return fmt.Errorf("rulesgen: %w", err)
 			}
@@ -486,7 +496,7 @@ func stageTemplates(root string, templates map[string]templateMeta, m *manifestF
 	sort.Strings(types)
 	for _, rt := range types {
 		dir := "templates/" + strings.ToLower(rt)
-		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(dir), "rule.rego"))
+		b, err := safefs.ReadFile(filepath.Join(root, filepath.FromSlash(dir), "rule.rego"))
 		if err != nil {
 			continue // the gate reports a template without rule.rego; the bundle reader refuses it
 		}
@@ -538,7 +548,7 @@ func marshal(v any) ([]byte, error) {
 }
 
 func readJSON(path string, v any) error {
-	raw, err := os.ReadFile(path)
+	raw, err := safefs.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -547,7 +557,7 @@ func readJSON(path string, v any) error {
 
 // readStrict decodes one JSON document and refuses unknown keys and trailing data.
 func readStrict(path string, v any) error {
-	raw, err := os.ReadFile(path)
+	raw, err := safefs.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -566,7 +576,7 @@ func readStrict(path string, v any) error {
 // byte for byte (the gate has already vetted it, and the PDS vets it again at load) and listed with its digest in the unsigned
 // policy-data manifest. Text is configuration: it never goes into the rule bundle, so a wording change moves the policy data only.
 func addSafeReasons(root string, policyFiles map[string][]byte) error {
-	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(safeReasonsSource)))
+	raw, err := safefs.ReadFile(filepath.Join(root, filepath.FromSlash(safeReasonsSource)))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}

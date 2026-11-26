@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/v1/rego"
+
+	"github.com/sspl/sspl-cip-rego-rules/internal/safefs"
 )
 
 // The N and N-1 comparison (PDE architecture document, section 33: "N/N-1 compatibility"). For every
@@ -217,7 +219,11 @@ func reviewed(list []Widening, from, to, name string) int {
 
 // evaluate runs the ruleset's decision rule on the case.
 func evaluate(ctx context.Context, root, path, pkg, profile, operation string, cs corpusCase) (Outcome, error) {
-	src, err := os.ReadFile(filepath.Join(root, "rulesets", filepath.FromSlash(path), "policy.rego"))
+	dir, err := safefs.Join(filepath.Join(root, "rulesets"), path)
+	if err != nil {
+		return Outcome{}, err
+	}
+	src, err := safefs.ReadFile(filepath.Join(dir, "policy.rego"))
 	if err != nil {
 		return Outcome{}, err
 	}

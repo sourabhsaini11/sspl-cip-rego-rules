@@ -24,8 +24,12 @@ var allowed = map[string][]string{
 	module + "/cmd/rules-conformance": {module + "/internal/conformance"},
 	module + "/cmd/rules-gen":         {module + "/internal/rulesgen"},
 	module + "/cmd/rules-pairtest":    {module + "/internal/pairtest"},
+	// Every gate reads its inputs through the one capped, symlink-refusing reader (SEC-09); safefs imports nothing of ours.
+	module + "/internal/conformance": {module + "/internal/safefs"},
+	module + "/internal/rulescheck":  {module + "/internal/safefs"},
+	module + "/internal/rulesgen":    {module + "/internal/safefs"},
 	// The pair gate reuses the conformance runner to evaluate rules; nothing else crosses.
-	module + "/internal/pairtest": {module + "/internal/conformance"},
+	module + "/internal/pairtest": {module + "/internal/conformance", module + "/internal/safefs"},
 }
 
 func isModule(path string) bool { return path == module || strings.HasPrefix(path, module+"/") }
@@ -104,6 +108,7 @@ func TestTheRulesCatchEachKindOfBreach(t *testing.T) {
 		{"conformance imports pairtest", graph{p("internal/conformance"): {p("internal/pairtest")}}},
 		{"a command imports another command's package", graph{p("cmd/rules-check"): {p("internal/pairtest")}}},
 		{"an internal package imports a command", graph{p("internal/rulesgen"): {p("cmd/rules-gen")}}},
+		{"the file reader imports a gate", graph{p("internal/safefs"): {p("internal/rulescheck")}}},
 	}
 	for _, c := range cases {
 		if len(violations(c.g)) == 0 {

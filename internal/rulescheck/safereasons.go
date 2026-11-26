@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"unicode"
+
+	"github.com/sspl/sspl-cip-rego-rules/internal/safefs"
 )
 
 // The approved text for GET_SAFE_REASON (PDE architecture document, section 9) is policy data: this file ships to the PDS as the
@@ -40,7 +42,7 @@ type safeReasonEntry struct {
 
 // checkSafeReasons validates the catalogue when there is one. No file is a valid state: the PDS then answers with the text per result.
 func (c *checker) checkSafeReasons() {
-	raw, err := os.ReadFile(filepath.Join(c.root, safeReasonsRel))
+	raw, err := safefs.ReadFile(filepath.Join(c.root, safeReasonsRel))
 	if errors.Is(err, os.ErrNotExist) {
 		return
 	}

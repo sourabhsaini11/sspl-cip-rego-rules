@@ -26,6 +26,7 @@ import (
 	"github.com/open-policy-agent/opa/v1/rego"
 
 	"github.com/sspl/sspl-cip-rego-rules/internal/conformance"
+	"github.com/sspl/sspl-cip-rego-rules/internal/safefs"
 )
 
 // Spec is one pair's conformance spec (conformance/pairs/<profile>_<version>.json).
@@ -121,7 +122,7 @@ type controlEntry struct{ Name, Version, Package, Path string }
 // Run tests the pair the spec describes against the rules under root. An error means the run could not be made (a bad spec, an unknown ruleset);
 // a wrong answer is a Failure, not an error. now stamps the record.
 func Run(ctx context.Context, root, specPath string, now time.Time) (Result, error) {
-	raw, err := os.ReadFile(specPath)
+	raw, err := safefs.ReadFile(specPath)
 	if err != nil {
 		return Result{}, fmt.Errorf("pairtest: %w", err)
 	}
@@ -139,17 +140,23 @@ func Run(ctx context.Context, root, specPath string, now time.Time) (Result, err
 	if err != nil {
 		return Result{}, err
 	}
-	rtDir := filepath.Join(root, "rulesets", filepath.FromSlash(rt.Path))
-	ctlDir := filepath.Join(root, "control", filepath.FromSlash(ctl.Path))
-	rtPolicy, err := os.ReadFile(filepath.Join(rtDir, "policy.rego"))
+	rtDir, err := safefs.Join(filepath.Join(root, "rulesets"), rt.Path)
 	if err != nil {
 		return Result{}, fmt.Errorf("pairtest: %w", err)
 	}
-	rtSchema, err := os.ReadFile(filepath.Join(rtDir, "fact-schema.json"))
+	ctlDir, err := safefs.Join(filepath.Join(root, "control"), ctl.Path)
 	if err != nil {
 		return Result{}, fmt.Errorf("pairtest: %w", err)
 	}
-	ctlPolicy, err := os.ReadFile(filepath.Join(ctlDir, "policy.rego"))
+	rtPolicy, err := safefs.ReadFile(filepath.Join(rtDir, "policy.rego"))
+	if err != nil {
+		return Result{}, fmt.Errorf("pairtest: %w", err)
+	}
+	rtSchema, err := safefs.ReadFile(filepath.Join(rtDir, "fact-schema.json"))
+	if err != nil {
+		return Result{}, fmt.Errorf("pairtest: %w", err)
+	}
+	ctlPolicy, err := safefs.ReadFile(filepath.Join(ctlDir, "policy.rego"))
 	if err != nil {
 		return Result{}, fmt.Errorf("pairtest: %w", err)
 	}
@@ -448,7 +455,7 @@ func findControl(root, name string) (controlEntry, error) {
 }
 
 func readJSON(path string, v any) error {
-	raw, err := os.ReadFile(path)
+	raw, err := safefs.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("pairtest: %w", err)
 	}
