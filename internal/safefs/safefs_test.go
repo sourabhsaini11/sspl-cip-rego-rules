@@ -71,3 +71,21 @@ func TestAPathFromADataFileCannotLeaveItsRoot(t *testing.T) {
 		}
 	}
 }
+
+// Whatever a data file says, a joined path stays inside its root.
+func FuzzJoinNeverLeavesItsRoot(f *testing.F) {
+	for _, seed := range []string{"", "a", "a/b", "../x", "a/../../x", "/abs", "..", ".", "a//b", "a/./b", "\x00", "a\\..\\b"} {
+		f.Add(seed)
+	}
+	root := filepath.Join(string(filepath.Separator), "repo", "rulesets")
+	f.Fuzz(func(t *testing.T, rel string) {
+		got, err := safefs.Join(root, rel)
+		if err != nil {
+			return
+		}
+		inside, relErr := filepath.Rel(root, got)
+		if relErr != nil || inside == ".." || strings.HasPrefix(inside, ".."+string(filepath.Separator)) {
+			t.Fatalf("%q escaped %s: %s", rel, root, got)
+		}
+	})
+}
