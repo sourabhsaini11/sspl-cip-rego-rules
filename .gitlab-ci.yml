@@ -66,11 +66,13 @@ lint:
 
 mutation:
   stage: conformance
-  script: [make mutate]
+  # One run: the report is written to the artifact and printed, and the job keeps the command's own exit status (the suite is
+  # not run a second time, and no `|| true` hides a failure).
+  script:
+    - go run ./cmd/rules-conformance mutate > mutation-report.md; status=$?; cat mutation-report.md; exit $status
   artifacts:
     when: always
     paths: [mutation-report.md]
-  after_script: ["go run ./cmd/rules-conformance mutate > mutation-report.md || true"]
 
 compat:
   stage: conformance
