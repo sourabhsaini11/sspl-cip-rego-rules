@@ -84,7 +84,7 @@ test_a_mistyped_counter_is_undefined if {
 
 at(ts) := object.union(base, {"ctx": object.union(base.ctx, {"now": ts})})
 
-night(n) := object.union(at("2026-11-20T23:30:00+05:30"), {"live": {"found": true, "daily_drawn_inr": n}})
+night(n) := object.union(at("2026-11-20T15:10:00+05:30"), {"live": {"found": true, "daily_drawn_inr": n}})
 
 test_by_day_only_the_daily_quota_applies if {
 	d := bal.decision with input as with_live(4)
@@ -118,23 +118,23 @@ test_the_same_count_by_day_is_the_daily_quota_not_the_night_limit if {
 	e.reason == "BALANCE_DAILY_QUOTA_EXCEEDED"
 }
 
-test_night_starts_at_17_30_and_ends_at_06_00 if {
-	d1730 := bal.decision with input as object.union(night(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T17:30:00+05:30"})})
-	not d1730.allow
-	d1729 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T17:29:00+05:30"})})
-	d1729.allow
-	d0559 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-21T05:59:00+05:30"})})
-	not d0559.allow
-	d0600 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-21T06:00:00+05:30"})})
-	d0600.allow
+test_the_window_is_15_00_to_15_30_start_inclusive_end_exclusive if {
+	d1500 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T15:00:00+05:30"})})
+	not d1500.allow
+	d1529 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T15:29:59+05:30"})})
+	not d1529.allow
+	d1530 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T15:30:00+05:30"})})
+	d1530.allow
+	d1459 := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T14:59:59+05:30"})})
+	d1459.allow
 }
 
-test_the_night_is_read_in_the_states_zone_not_utc if {
-	# 23:30 IST is 18:00 UTC: still night in Asia/Kolkata.
+test_the_window_is_read_in_the_states_zone_not_utc if {
+	# 15:10 IST is 09:40 UTC: inside the window in Asia/Kolkata.
 	d := bal.decision with input as night(4)
 	not d.allow
-	# 10:00 IST is 04:30 UTC: still day in Asia/Kolkata.
-	e := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T10:00:00+05:30"})})
+	# 15:10 UTC is 20:40 IST: outside the window in Asia/Kolkata.
+	e := bal.decision with input as object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T15:10:00Z"})})
 	e.allow
 }
 
@@ -152,12 +152,11 @@ test_a_zero_quota_at_night_is_still_a_denial if {
 	not d.allow
 }
 
-test_the_early_evening_is_night_from_17_30_on if {
-	evening := object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T19:00:00+05:30"})})
-	d := bal.decision with input as evening
-	not d.allow
-	d.reason == "NIGHT_CAP_EXCEEDED"
-	afternoon := object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T16:45:00+05:30"})})
-	e := bal.decision with input as afternoon
+test_the_old_night_hours_are_no_longer_night if {
+	late := object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-20T23:30:00+05:30"})})
+	d := bal.decision with input as late
+	d.allow
+	early := object.union(with_live(4), {"ctx": object.union(base.ctx, {"now": "2026-11-21T03:00:00+05:30"})})
+	e := bal.decision with input as early
 	e.allow
 }

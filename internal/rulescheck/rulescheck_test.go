@@ -573,7 +573,7 @@ func TestADisagreementBetweenTheRegistryAndTheManifestAboutTenancyIsCaught(t *te
 
 const e2eV2Policy = "rulesets/bridge_balance_enquiry_e2e/v2/policy.rego"
 
-// The 17:30 night start of BRIDGE-BALANCE-ENQUIRY-E2E v2 is a named, temporary exemption: 17 and 30 are allowed in
+// The 15:00 to 15:30 night window of BRIDGE-BALANCE-ENQUIRY-E2E v2 is a named, temporary exemption: 15 and 30 are allowed in
 // that one ruleset, nothing else is, and no other ruleset gains them.
 func TestTheDevOnlyLiteralExemptionIsNarrow(t *testing.T) {
 	// another number in the exempt ruleset is still a limit
@@ -581,18 +581,18 @@ func TestTheDevOnlyLiteralExemptionIsNarrow(t *testing.T) {
 	edit(t, root, e2eV2Policy, func(s string) string { return s + "\nextra_cap := 18\n" })
 	requireProblem(t, problems(t, root), "literal 18")
 
-	// 17 and 30 are fine in the exempt ruleset (v2 itself uses them)
+	// 15 and 30 are fine in the exempt ruleset (v2 itself uses them)
 	root = scratch(t)
-	edit(t, root, e2eV2Policy, func(s string) string { return s + "\nsame_start := 17\nsame_minute := 30\n" })
+	edit(t, root, e2eV2Policy, func(s string) string { return s + "\nsame_start := 15\nsame_minute := 30\n" })
 	for _, p := range problems(t, root) {
-		require.NotContains(t, p, "literal 17")
+		require.NotContains(t, p, "literal 15")
 		require.NotContains(t, p, "literal 30")
 	}
 
 	// but 17 in any other ruleset is still refused
 	root = scratch(t)
-	edit(t, root, upiPolicy, func(s string) string { return s + "\nafternoon_cap := 17\n" })
-	requireProblem(t, problems(t, root), "literal 17")
+	edit(t, root, upiPolicy, func(s string) string { return s + "\nafternoon_cap := 15\n" })
+	requireProblem(t, problems(t, root), "literal 15")
 }
 
 func TestAManifestPathThatLeavesTheRulesetsDirectoryIsReportedAndNeverRead(t *testing.T) {
